@@ -204,7 +204,7 @@ segundos de gravedad lenta para pensar mejor donde poner la
 pieza.
 
 
-resumen rapido
+resumen
 
 compiler.py
 - lineas 10-11: // en vez de #, regex con {} y colores

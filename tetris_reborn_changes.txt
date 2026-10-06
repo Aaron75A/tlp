@@ -40,5 +40,5 @@ archivo: games/tetris.brick
 - pieza J_PIECE: pasa a X_PIECE con forma de cruz
 - despues de los DEFINE SHAPE: bloques DEFINE POWERUP BOMB y SLOW
 
-
-contribuciones By: Aaron David Onorez Bastardo
+contribuciones By: Aaron David Onorez Bastardo (COLORES, POWERUPS)
+contribuciones By: Juan Jose Bran Cano (AGREGO PIEZAS, CAMBIO EN EL SPAWNEO DE PIEZAS)

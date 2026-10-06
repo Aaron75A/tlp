@@ -379,16 +379,43 @@ class Juego:
                     self.spawn_powerup(nombre)
                     return   # solo un spawn por comprobacion
 
+    def _celdas_alcanzables(self):
+        """Devuelve las celdas vacias a las que una pieza puede llegar
+        cayendo desde arriba (evita huecos cerrados)."""
+        from collections import deque
+        alcanzables = set()
+        cola = deque()
+
+        # Arrancar desde las celdas vacias de la fila superior
+        for x in range(self.ancho):
+            if self.grid[0][x] == 0:
+                alcanzables.add((x, 0))
+                cola.append((x, 0))
+
+        # Propagarse solo por celdas vacias
+        while cola:
+            cx, cy = cola.popleft()
+            for dx, dy in ((-1, 0), (1, 0), (0, 1), (0, -1)):
+                nx, ny = cx + dx, cy + dy
+                if (0 <= nx < self.ancho and 0 <= ny < self.alto
+                        and (nx, ny) not in alcanzables
+                        and self.grid[ny][nx] == 0):
+                    alcanzables.add((nx, ny))
+                    cola.append((nx, ny))
+
+        return alcanzables
+
     def spawn_powerup(self, nombre):
-        """Coloca el power-up en una celda vacia aleatoria del tablero."""
+        """Coloca el power-up en una celda vacia Y alcanzable al azar."""
         if nombre not in self.powerups:
             return
-        for _ in range(300):
-            x = random.randint(0, self.ancho - 1)
-            y = random.randint(0, self.alto - 1)
-            if self.grid[y][x] == 0:
-                self.grid[y][x] = nombre
-                return
+
+        alcanzables = list(self._celdas_alcanzables())
+        if not alcanzables:
+            return   # tablero lleno o sin espacio util, no se spawnea nada
+
+        x, y = random.choice(alcanzables)
+        self.grid[y][x] = nombre
 
     def aplicar_efecto_powerup(self, nombre, gx, gy):
         """Ejecuta el efecto del power-up recogido en (gx, gy)."""

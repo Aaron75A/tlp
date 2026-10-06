@@ -1,9 +1,20 @@
-# tetris.brick
+// tetris.brick
+
+COLORES {
+    I_PIECE: "#00FFFF"
+    J_PIECE: "#0000FF"
+    L_PIECE: "#FFA500"
+    O_PIECE: "#FFFF00"
+    S_PIECE: "#00FF00"
+    T_PIECE: "#800080"
+    ARCH_PIECE: "#FF0000"
+}
+
 GAME_TYPE TETRIS
 
 GAME_GRID (10, 20)
 
-# --- Definicion de las Piezas ---
+// --- Definicion de las Piezas ---
 DEFINE SHAPE I_PIECE:
   STATE 1:
     [0, 1, 0, 0]
@@ -55,12 +66,49 @@ DEFINE SHAPE T_PIECE:
     [0, 1, 0]
 END
 
-# --- Logica y Reglas ---
+DEFINE SHAPE O_PIECE:
+  STATE 1:
+  [0, 1, 1]
+  [0, 1, 1]
+  [0, 0, 0]   
+END
+
+DEFINE SHAPE S_PIECE:
+  STATE 1:
+  [0, 1, 1]
+  [0, 1, 0]
+  [1, 1, 0]
+  STATE 2:
+  [1, 0, 0]
+  [1, 1, 1]
+  [0, 0, 1]
+END
+
+DEFINE SHAPE ARCH_PIECE:
+  STATE 1:
+  [1, 1, 1]
+  [1, 0, 1]
+  [0, 0, 0]
+  STATE 2: 
+  [0, 1, 1]
+  [0, 0, 1]
+  [0, 1, 1]
+  STATE 3:
+  [0, 0, 0]
+  [1, 0, 1]
+  [1, 1, 1]
+  STATE 4:
+  [1, 1, 0]
+  [1, 0, 0]
+  [1, 1, 0]  
+END
+
+// --- Logica y Reglas ---
 ON START:
   SPAWN RANDOM_SHAPE
 END
 
-# ON_TICK es el evento que controla la gravedad
+// ON_TICK es el evento que controla la gravedad
 ON TICK:
   MOVE CURRENT_PIECE DOWN
 END
@@ -69,7 +117,7 @@ ON LINE_CLEAR:
   INCREASE_SCORE 100
 END
 
-# --- Controles ---
+// --- Controles ---
 ON KEY_LEFT:
   MOVE CURRENT_PIECE LEFT
 END

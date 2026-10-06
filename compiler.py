@@ -7,8 +7,8 @@ import re
 import json
 
 def lexer(codigo_fuente):
-    codigo_fuente = re.sub(r'#.*', '', codigo_fuente)
-    token_regex = r'\b[A-Z_]+\b|\d+|[\[\](),:]'
+    codigo_fuente = re.sub(r'//.*', '', codigo_fuente)
+    token_regex = r'\b[A-Z_]+\b|\d+|[\[\](),:{}]|#[0-9A-Fa-f]{3,6}'
     tokens = re.findall(token_regex, codigo_fuente)
     return tokens
 
@@ -29,6 +29,8 @@ class Parser:
                 self.parsear_shape()
             elif token_actual == 'ON':
                 self.parsear_evento()
+            elif token_actual == 'COLORES':
+                self.parsear_colores()
             else:
                 self.posicion += 1
         return self.ast
@@ -57,6 +59,24 @@ class Parser:
         self.consumir(')')
         self.ast['config']['grid_size'] = [ancho, alto]
 
+    def parsear_colores(self):
+        self.consumir('COLORES')
+        self.consumir('{')
+        colores = {}
+
+        while self.posicion < len(self.tokens) and self.tokens[self.posicion] != '}':
+            nombre_pieza = self.consumir()  #Teclas  I, J, L, O, S, T, Z
+            self.consumir(':')
+            color_hex = self.consumir()     # un ejemplo: #00FFFF
+            colores[nombre_pieza] = color_hex
+            # Si el usuario puso comas entre los colores, se consumen para evitar errores de interpretacion
+            if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ',':
+                self.consumir(',')
+                        
+        self.consumir('}') # Cuando toque la barra de cierre deja de leer
+                
+        # Guardar en la configuración del AST
+        self.ast['config']['colores_piezas'] = colores
     def parsear_shape(self):
         self.consumir('DEFINE')
         self.consumir('SHAPE')

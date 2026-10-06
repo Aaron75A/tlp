@@ -20,6 +20,10 @@ class Juego:
         self.grid = [[0 for _ in range(self.ancho)] for _ in range(self.alto)]
         self.puntuacion = 0
         self.juego_terminado = False
+        self.colores_piezas = config.get('colores_piezas', {
+                    'I': '#00FFFF', 'J': '#0000FF', 'L': '#FFA500',
+                    'O': '#FFFF00', 'S': '#00FF00', 'T': '#800080', 'Z': '#FF0000'})
+        self.nombre_pieza_actual = None # sirve para guardar la letra de la pieza que está cayendo
         
         # --- Configuracion de la GUI ---
         self.root = tk.Tk()
@@ -112,37 +116,44 @@ class Juego:
 
 
     def dibujar(self):
-        self.canvas.delete("all") # Borrar todo en cada frame
+    
+        #print("Nombre pieza actual:", self.nombre_pieza_actual)
+        #print("Colores disponibles:", list(self.colores_piezas.keys()))
+        
+        self.canvas.delete("all")
         self.label_score.config(text="PUNTUACION\n" + str(self.puntuacion))
         
-        # Colores
-        COLOR_GRID_FIJA = '#343434' # Gris oscuro para las celdas fijadas (Tetris)
-        COLOR_PIEZA = '#00FFFF'     # Cyan para la pieza activa (Tetris)
-        COLOR_SNAKE_CABEZA = '#00FF00' # Verde brillante
-        COLOR_SNAKE_CUERPO = '#33CC33' # Verde normal
-        COLOR_FOOD = '#FF0000'      # Rojo
+        # Colores fijos para Snake
+        COLOR_SNAKE_CABEZA = '#00FF00'
+        COLOR_SNAKE_CUERPO = '#33CC33'
+        COLOR_FOOD = '#FF0000'
         
-        # 1. Dibujar la cuadricula estatica (grid base)
+        # 1. Dibujar la cuadrícula estática (piezas ya fijadas)
         for y in range(self.alto):
             for x in range(self.ancho):
-                if self.grid[y][x] == 1:
-                     self.dibujar_celda(x, y, COLOR_GRID_FIJA)
+                tipo_en_celda = self.grid[y][x]
+                if tipo_en_celda != 0: # Si hay una pieza fijada (ej. 'T')
+                    # Buscamos su color en el diccionario. Si no existe, usamos gris.
+                    color_fijo = self.colores_piezas.get(tipo_en_celda, '#343434')
+                    self.dibujar_celda(x, y, color_fijo)
 
         # 2. Dibujar la pieza actual de Tetris
         if self.tipo_juego == 'TETRIS' and self.pieza_actual:
+            # Buscamos el color de la pieza que está cayendo
+            color_actual = self.colores_piezas.get(self.nombre_pieza_actual, '#00FFFF')
+            
             matriz_pieza = self.pieza_actual[self.pieza_rotacion]
             for y_offset, fila in enumerate(matriz_pieza):
                 for x_offset, celda in enumerate(fila):
                     if celda == 1:
-                        self.dibujar_celda(self.pieza_x + x_offset, self.pieza_y + y_offset, COLOR_PIEZA)
+                        self.dibujar_celda(self.pieza_x + x_offset, self.pieza_y + y_offset, color_actual)
         
         # 3. Dibujar Snake y Comida
         if self.tipo_juego == 'SNAKE':
-            # Comida
             if self.posicion_comida:
                 x, y = self.posicion_comida
                 self.dibujar_celda(x, y, COLOR_FOOD)
-            # Cuerpo de la Serpiente
+                #CUerpo de la serpiente
             for i, segmento in enumerate(self.serpiente_cuerpo):
                 x, y = segmento
                 color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
@@ -181,6 +192,7 @@ class Juego:
     def tetris_spawn_pieza(self):
         nombre_pieza = random.choice(list(self.datos_juego['shapes'].keys()))
         self.pieza_actual = self.datos_juego['shapes'][nombre_pieza]
+        self.nombre_pieza_actual = nombre_pieza
         self.pieza_x, self.pieza_y, self.pieza_rotacion = self.ancho // 2 - 2, 0, 0
         if self.tetris_verificar_colision(self.pieza_x, self.pieza_y, self.pieza_rotacion):
             self.juego_terminado = True
@@ -209,8 +221,9 @@ class Juego:
             for x_offset, celda in enumerate(fila):
                 if celda == 1:
                     if 0 <= self.pieza_y + y_offset < self.alto and 0 <= self.pieza_x + x_offset < self.ancho:
-                        self.grid[self.pieza_y + y_offset][self.pieza_x + x_offset] = 1
+                        self.grid[self.pieza_y + y_offset][self.pieza_x + x_offset] = self.nombre_pieza_actual
         self.pieza_actual = None
+        self.nombre_pieza_actual = None
         self.tetris_limpiar_lineas()
         self.ejecutar_evento('ON_START')
 
@@ -226,7 +239,7 @@ class Juego:
         return False
 
     def tetris_limpiar_lineas(self):
-        nuevo_grid = [fila for fila in self.grid if not all(fila)]
+        nuevo_grid = [fila for fila in self.grid if 0 in fila]
         lineas_limpias = self.alto - len(nuevo_grid)
         if lineas_limpias > 0:
             self.grid = [[0] * self.ancho for _ in range(lineas_limpias)] + nuevo_grid

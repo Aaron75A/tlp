@@ -1,240 +1,44 @@
 tetris_reborn_changes
-cambios con numero de linea
+resumen de la sesion
 
 
-sesion 1: colores por pieza
+archivo: compiler.py
+
+- linea 10-11: en lexer, comentarios cambiados a // y regex con {} y colores
+- linea 19: se agrego "powerups" al AST
+- lineas 28-29: parse distingue DEFINE SHAPE de DEFINE POWERUP
+- lineas 32-33: parse detecta COLORES
+- lineas 62-79: metodo nuevo parsear_colores
+- lineas 68-72 y 89: parsear_shape lee CHANCE y guarda shapes como dict con CHANCE y states
+- despues de linea 101: metodo nuevo parsear_powerup
 
 
-compiler.py
+archivo: runtime.py
 
-cambio 1, lineas 10-11, funcion lexer
-antes: re.sub(r'#.*', ...) y regex sin {} ni colores
-ahora: re.sub(r'//.*', ...) y regex con {} y #XXXXXX
-por que: el # ahora es para colores, si seguia como comentario
-el lexer los borraba. las {} y el patron de color son tokens
-nuevos que antes no existian.
-
-cambio 2, lineas 32-33, dentro de parse
-se agrego: elif token_actual == 'COLORES': self.parsear_colores()
-por que: cuando el parser ve COLORES tiene que ir a una funcion
-nueva que lea el bloque. sin esto los colores se ignoraban.
-
-cambio 3, lineas 62-79, metodo nuevo parsear_colores
-lee el bloque COLORES { ... } y lo guarda en
-self.ast['config']['colores_piezas'].
-por que: sin este metodo los colores nunca llegaban al JSON
-ni al runtime.
+- lineas 23-26: se agregaron colores_piezas y nombre_pieza_actual
+- despues de linea 26: se agregaron powerups, stats, tiempo_slow y ultimo_powerup
+- lineas 47-50: etiqueta nueva label_powerup en la GUI
+- lineas 77-80: game_loop usa velocidad_efectiva para respetar el slow
+- linea 118 en adelante: dibujar actualiza label_powerup
+- lineas 128-132: dibujar distingue power-ups con circulo
+- despues de linea 156: metodo nuevo dibujar_celda_powerup
+- lineas 174-180: tetris_spawn_pieza con seleccion ponderada por CHANCE
+- lineas 175-183: se guarda nombre_pieza_actual al spawnear
+- lineas 190-194: tetris_rotar_pieza cuenta rotaciones
+- lineas 197-211: tetris_fijar_pieza recoge power-ups y cuenta piezas
+- antes de linea 213: metodo nuevo _celda_bloqueada
+- lineas 213-218: tetris_verificar_colision usa _celda_bloqueada
+- lineas 228-232: tetris_limpiar_lineas pasa lineas limpiadas a las condiciones
+- despues de limpiar_lineas: metodos nuevos verificar_condiciones_powerup, spawn_powerup y aplicar_efecto_powerup
 
 
-runtime.py
+archivo: games/tetris.brick
 
-cambio 1, lineas 23-26, en __init__
-se agrego: self.colores_piezas (diccionario del JSON o los
-clasicos por defecto) y self.nombre_pieza_actual = None.
-por que: para saber que color le toca a cada pieza y recordar
-que letra esta cayendo. antes solo sabiamos que habia una
-pieza pero no cual.
-
-cambio 2, lineas 175-183, metodo tetris_spawn_pieza
-se guarda self.nombre_pieza_actual y si esa pieza no tiene
-color se le pone uno automatico de una lista.
-por que: para saber despues que color usar y para que nunca
-dos piezas se vean iguales aunque te olvides de escribir el
-bloque COLORES.
-
-cambio 3, lineas 200-207, metodo tetris_fijar_pieza
-antes el grid guardaba un 1, ahora guarda
-self.nombre_pieza_actual (la letra).
-por que: un 1 no dice de que color es. ahora el tablero
-recuerda que color pintar cada bloque fijo.
-
-cambio 4, linea 228, metodo tetris_limpiar_lineas
-antes: if not all(fila)
-ahora: if 0 in fila
-por que: las celdas ya no son 1 y 0 sino letras y 0. las
-letras tambien son verdaderas en python y all fallaba.
-
-cambio 5, lineas 128-132 y 145, metodo dibujar
-se borro la constante COLOR_PIEZA. ahora lee la letra de cada
-celda, la busca en colores_piezas y pinta con ese color.
-por que: cada pieza tiene su color propio y lo mantiene aunque
-se quede fija en el suelo.
-
-
-games/tetris.brick
-
-cambio 1, todas las lineas con #, comentarios
-antes: # comentario
-ahora: // comentario
-por que: el # ahora es sagrado, lo usan los colores.
-
-cambio 2, despues de GAME_GRID
-se agrega el bloque COLORES { I: #00FFFF, J: #0000FF, ... }
-por que: le dice al compilador que color tiene cada pieza. los
-nombres tienen que coincidir con los DEFINE SHAPE. si no
-coinciden el runtime le pone un color random y no se rompe,
-solo no es el color que querias.
-
-
-sesion 2: power-ups
-
-
-compiler.py
-
-cambio 1, linea 19, __init__ del Parser
-se agrego la llave "powerups" al AST.
-por que: es el cajon donde el compilador guarda los power-ups
-del .brick. sin el el runtime nunca se entera de que existen.
-
-cambio 2, lineas 28-29, dentro de parse
-antes DEFINE siempre iba a parsear_shape.
-ahora mira el token siguiente: si dice POWERUP va a
-parsear_powerup, si no va a parsear_shape.
-por que: sin ese chequeo DEFINE POWERUP BOMB se trataba como
-una forma y el compilador se rompia.
-
-cambio 3, despues de linea 101 (antes de parsear_evento),
-metodo nuevo parsear_powerup
-lee un bloque DEFINE POWERUP ... END y saca cuatro cosas:
-la forma, el efecto, el color y la lista de condiciones.
-por que: es el corazon del sistema de power-ups del lado del
-compilador. sin esto no se puede leer DEFINE POWERUP.
-
-
-runtime.py
-
-cambio 1, despues de linea 26, en __init__
-se agregaron: self.powerups, self.stats (contadores de
-rotaciones totales, por pieza, y piezas colocadas),
-self.tiempo_slow y self.ultimo_powerup.
-por que: los contadores permiten condiciones tipo "aparece
-tras 10 rotaciones". sin ellos no se dispara nada.
-
-cambio 2, entre lineas 47 y 50, etiqueta nueva
-se agrego self.label_powerup entre label_score y
-label_controles.
-por que: para avisarte cuando agarras un power-up y cuanto le
-queda al SLOW. si no la pones agarras la bomba y no te enteras.
-
-cambio 3, lineas 77-80, metodo game_loop
-se creo velocidad_efectiva que reemplaza a velocidad_gravedad
-en la comparacion. si estas bajo SLOW se multiplica x2.5.
-por que: asi funciona SLOW_GRAVITY. antes no habia forma de
-tocar la gravedad sin meterse en la logica del juego.
-
-cambio 4, lineas 128-132, metodo dibujar
-si la celda tiene un power-up lo dibuja con circulo brillante,
-si no con el cuadro de siempre.
-por que: sin esa distincion se veia igual que un bloque y no
-lo reconoces.
-
-cambio 5, despues de linea 118, metodo dibujar
-actualiza label_powerup: si hay slow muestra "SLOW: X.Xs", si
-no muestra el ultimo power-up agarrado.
-por que: para que la etiqueta muestre info util.
-
-cambio 6, despues de linea 156, metodo nuevo
-dibujar_celda_powerup dibuja un circulo con borde blanco en la
-celda del power-up.
-por que: un circulo se lee como cosa especial y lo distingues
-de las piezas.
-
-cambio 7, lineas 190-194, metodo tetris_rotar_pieza
-cada rotacion valida suma 1 a rotaciones_totales y 1 al
-contador de esa pieza. despues llama a
-verificar_condiciones_powerup.
-por que: sin contar las rotaciones la condicion
-ROTATIONS_PIECE L_PIECE 10 nunca se dispara.
-
-cambio 8, antes de tetris_verificar_colision, metodo nuevo
-_celda_bloqueada. devuelve True si es pieza fija o esta fuera
-del tablero, y False si esta vacia o si tiene un power-up.
-por que: los power-ups no actuan como pared, la pieza cae
-encima y los pisa para recogerlos.
-
-cambio 9, lineas 213-218, metodo tetris_verificar_colision
-antes comparaba contra 0, ahora llama a _celda_bloqueada.
-por que: los power-ups ocupan celda pero no deben hacer
-chocar.
-
-cambio 10, lineas 197-211, metodo tetris_fijar_pieza
-antes de sobreescribir cada celda revisa si ahi habia un
-power-up, lo guarda en "recogidos" y despues aplica sus
-efectos. tambien suma 1 a piezas_colocadas y chequea si toca
-spawnear.
-por que: es la parte donde realmente recoges el power-up. la
-pieza cae encima, lo pisas y pum.
-
-cambio 11, lineas 228-232, metodo tetris_limpiar_lineas
-se le pasa a verificar_condiciones_powerup cuantas lineas se
-limpiaron de una sola vez.
-por que: para poder definir condiciones tipo "aparece cuando
-limpias 3 lineas simultaneas".
-
-cambio 12, despues de tetris_limpiar_lineas, tres metodos
-nuevos: verificar_condiciones_powerup, spawn_powerup y
-aplicar_efecto_powerup.
-verificar_condiciones_powerup decide si toca spawnear algo.
-soporta LINES_CLEARED, ROTATIONS, ROTATIONS_PIECE y
-PIECES_DROPPED.
-spawn_powerup busca celda vacia al azar (hasta 300 intentos)
-y mete ahi el power-up.
-aplicar_efecto_powerup ejecuta el efecto. soporta CLEAR_AREA
-(3x3), CLEAR_ROW (fila) y SLOW_GRAVITY (5 segundos lento).
-por que: estos tres son toda la logica. sin ellos los
-power-ups no aparecen, no se disparan y no hacen nada.
-detalle: cuando una condicion se cumple le restamos el umbral
-al contador. si pide 3 lineas y limpiaste 3 el contador queda
-en 0, asi se puede volver a disparar tras otras N acciones.
-
-
-games/tetris.brick
-
-cambio 1, despues de los DEFINE SHAPE y antes de los ON
-se agregan:
-DEFINE POWERUP BOMB: forma 1x1, EFFECT CLEAR_AREA,
-  COLOR #FF3300, CONDITION LINES_CLEARED 3,
-  CONDITION ROTATIONS_PIECE L_PIECE 10
-DEFINE POWERUP SLOW: forma 1x1, EFFECT SLOW_GRAVITY,
-  COLOR #00AAFF, CONDITION PIECES_DROPPED 8
-por que: la BOMB aparece al limpiar 3 lineas de golpe (lo que
-pidio el profe) o al rotar L_PIECE 10 veces, y al agarrarla
-limpia un area 3x3. el SLOW aparece cada 8 piezas y te da 5
-segundos de gravedad lenta para pensar mejor donde poner la
-pieza.
-
-
-resumen
-
-compiler.py
-- lineas 10-11: // en vez de #, regex con {} y colores
-- lineas 28-29: detectar DEFINE POWERUP en parse
-- lineas 32-33: detectar COLORES en parse
-- linea 19: llave "powerups" al AST
-- lineas 62-79: metodo parsear_colores
-- despues de linea 101: metodo parsear_powerup
-
-runtime.py
-- lineas 23-26: colores_piezas y nombre_pieza_actual
-- despues de linea 26: powerups, stats, tiempo_slow,
-  ultimo_powerup
-- lineas 47-50: label_powerup nueva en la GUI
-- lineas 77-80: velocidad_efectiva con slow en game_loop
-- linea 118 en adelante: actualizar label_powerup
-- lineas 128-132: pintar power-ups como circulos
-- despues de linea 156: dibujar_celda_powerup
-- lineas 175-183: guardar nombre_pieza_actual al spawnear
-- lineas 190-194: contar rotaciones en rotar_pieza
-- lineas 197-211: recoger power-ups al fijar pieza
-- antes de linea 213: _celda_bloqueada
-- lineas 213-218: verificar_colision con _celda_bloqueada
-- lineas 228-232: pasar lineas limpiadas a las condiciones
-- despues de limpiar_lineas: los tres metodos nuevos
-
-tetris.brick
-- todo: # pasa a //
+- todo el archivo: comentarios pasan de # a //
 - despues de GAME_GRID: bloque COLORES
-- despues de DEFINE SHAPE: POWERUP BOMB y POWERUP SLOW
+- cada DEFINE SHAPE: se agrega CHANCE N
+- pieza J_PIECE: pasa a X_PIECE con forma de cruz
+- despues de los DEFINE SHAPE: bloques DEFINE POWERUP BOMB y SLOW
 
 
 contribuciones By: Aaron David Onorez Bastardo

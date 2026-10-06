@@ -17,7 +17,7 @@
   },
   "shapes": {
     "I_PIECE": {
-      "CHANCE": 16,
+      "CHANCE": 20,
       "states": [
         [
           [
@@ -249,21 +249,9 @@
             0,
             1,
             1
-          ]
-        ],
-        [
-          [
-            1,
-            0,
-            0
           ],
           [
             1,
-            1,
-            0
-          ],
-          [
-            0,
             1,
             0
           ]
@@ -271,18 +259,15 @@
         [
           [
             1,
-            0,
             0
           ],
           [
             1,
-            1,
-            0
+            1
           ],
           [
             0,
-            1,
-            0
+            1
           ]
         ]
       ]
@@ -380,6 +365,49 @@
             0
           ]
         ]
+      ]
+    }
+  },
+  "powerups": {
+    "BOMB": {
+      "nombre": "BOMB",
+      "estados": [
+        [
+          [
+            1
+          ]
+        ]
+      ],
+      "efecto": "CLEAR_AREA",
+      "color": "#FF3300",
+      "condiciones": [
+        {
+          "tipo": "LINES_CLEARED",
+          "valor": 3
+        },
+        {
+          "tipo": "ROTATIONS_PIECE",
+          "pieza": "L_PIECE",
+          "valor": 10
+        }
+      ]
+    },
+    "SLOW": {
+      "nombre": "SLOW",
+      "estados": [
+        [
+          [
+            1
+          ]
+        ]
+      ],
+      "efecto": "SLOW_GRAVITY",
+      "color": "#00AAFF",
+      "condiciones": [
+        {
+          "tipo": "PIECES_DROPPED",
+          "valor": 8
+        }
       ]
     }
   },

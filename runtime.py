@@ -24,7 +24,17 @@ class Juego:
                     'I': '#00FFFF', 'J': '#0000FF', 'L': '#FFA500',
                     'O': '#FFFF00', 'S': '#00FF00', 'T': '#800080', 'Z': '#FF0000'})
         self.nombre_pieza_actual = None # sirve para guardar la letra de la pieza que está cayendo
-        
+
+        # --- NUEVO: Power-ups ---
+        self.powerups = self.datos_juego.get('powerups', {})
+        self.stats = {
+            'rotaciones_totales': 0,
+            'rotaciones_por_pieza': {},
+            'piezas_colocadas': 0
+        }
+        self.tiempo_slow = 0.0     # segundos restantes de gravedad lenta
+        self.ultimo_powerup = ""
+
         # --- Configuracion de la GUI ---
         self.root = tk.Tk()
         self.root.title("BrickScript - " + self.tipo_juego)
@@ -40,11 +50,17 @@ class Juego:
         self.canvas.pack(side=tk.LEFT, padx=10, pady=10)
 
         # Marco lateral para la puntuacion y controles
-        self.marco_score = tk.Frame(self.root, width=150, height=self.alto_canvas, bg='#222222')
+        self.marco_score = tk.Frame(self.root, width=170, height=self.alto_canvas, bg='#222222')
         self.marco_score.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=10)
         
         self.label_score = tk.Label(self.marco_score, text="PUNTUACION\n0", bg='#222222', fg='white', font=('Consolas', 16, 'bold'))
-        self.label_score.pack(pady=40, padx=10)
+        self.label_score.pack(pady=(30, 10), padx=10)
+
+        # --- NUEVO: etiqueta para el ultimo power-up / estado del slow ---
+        self.label_powerup = tk.Label(self.marco_score, text="", bg='#222222', fg='#FFD700',
+                                      font=('Consolas', 10, 'bold'),
+                                      wraplength=150, justify='center')
+        self.label_powerup.pack(pady=10, padx=10)
         
         # Nota: Se ha eliminado 'Q: Salir' de los controles en pantalla
         self.label_controles = tk.Label(self.marco_score, text="CONTROLES\nFlechas: Mover/Rotar", bg='#222222', fg='gray', font=('Consolas', 10))
@@ -80,8 +96,16 @@ class Juego:
 
         # Logica de TICK/Gravedad
         # El loop se ejecuta cada 50ms (0.05 segundos)
+        # --- NUEVO: respetar el slow si hay un power-up activo ---
+        velocidad_efectiva = self.velocidad_gravedad
+        if self.tiempo_slow > 0:
+            velocidad_efectiva *= 2.5
+            self.tiempo_slow -= 0.05
+            if self.tiempo_slow < 0:
+                self.tiempo_slow = 0
+
         self.timer_gravedad += 0.05 
-        if self.timer_gravedad >= self.velocidad_gravedad:
+        if self.timer_gravedad >= velocidad_efectiva:
             self.timer_gravedad = 0
             self.ejecutar_evento('ON_TICK')
 
@@ -122,6 +146,12 @@ class Juego:
         
         self.canvas.delete("all")
         self.label_score.config(text="PUNTUACION\n" + str(self.puntuacion))
+
+        # --- NUEVO: actualizar la etiqueta del power-up ---
+        if self.tiempo_slow > 0:
+            self.label_powerup.config(text="SLOW: %.1fs" % self.tiempo_slow)
+        elif self.ultimo_powerup:
+            self.label_powerup.config(text="Ultimo: " + self.ultimo_powerup)
         
         # Colores fijos para Snake
         COLOR_SNAKE_CABEZA = '#00FF00'
@@ -131,10 +161,16 @@ class Juego:
         # 1. Dibujar la cuadrícula estática (piezas ya fijadas)
         for y in range(self.alto):
             for x in range(self.ancho):
-                tipo_en_celda = self.grid[y][x]
-                if tipo_en_celda != 0: # Si hay una pieza fijada (ej. 'T')
+                celda = self.grid[y][x]
+                if celda == 0:
+                    continue
+                # --- NUEVO: si la celda tiene un power-up lo dibujamos distinto ---
+                if isinstance(celda, str) and celda in self.powerups:
+                    color_pu = self.powerups[celda].get('color', '#FFD700')
+                    self.dibujar_celda_powerup(x, y, color_pu)
+                else:
                     # Buscamos su color en el diccionario. Si no existe, usamos gris.
-                    color_fijo = self.colores_piezas.get(tipo_en_celda, '#343434')
+                    color_fijo = self.colores_piezas.get(celda, '#343434')
                     self.dibujar_celda(x, y, color_fijo)
 
         # 2. Dibujar la pieza actual de Tetris
@@ -164,6 +200,15 @@ class Juego:
         x1, y1 = x * ts, y * ts
         x2, y2 = x1 + ts, y1 + ts
         self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline='#000000')
+
+    # --- NUEVO: dibujo especial para los power-ups (un circulo brillante) ---
+    def dibujar_celda_powerup(self, x, y, color):
+        ts = self.taman_celda
+        x1, y1 = x * ts, y * ts
+        x2, y2 = x1 + ts, y1 + ts
+        self.canvas.create_rectangle(x1, y1, x2, y2, fill='#111111', outline='#333333')
+        m = 3
+        self.canvas.create_oval(x1 + m, y1 + m, x2 - m, y2 - m, fill=color, outline='#FFFFFF', width=2)
 
 
     def ejecutar_evento(self, nombre_evento):
@@ -235,18 +280,52 @@ class Juego:
         nueva_rotacion = (self.pieza_rotacion + 1) % len(self.pieza_actual)
         if not self.tetris_verificar_colision(self.pieza_x, self.pieza_y, nueva_rotacion):
             self.pieza_rotacion = nueva_rotacion
+            # --- NUEVO: contar rotaciones ---
+            self.stats['rotaciones_totales'] += 1
+            if self.nombre_pieza_actual:
+                p = self.nombre_pieza_actual
+                self.stats['rotaciones_por_pieza'][p] = \
+                    self.stats['rotaciones_por_pieza'].get(p, 0) + 1
+            self.verificar_condiciones_powerup(evento='ROTATION')
 
     def tetris_fijar_pieza(self):
         matriz_pieza = self.pieza_actual[self.pieza_rotacion]
+        # --- NUEVO: guardar los power-ups que esta pieza pise ---
+        recogidos = []
         for y_offset, fila in enumerate(matriz_pieza):
             for x_offset, celda in enumerate(fila):
                 if celda == 1:
                     if 0 <= self.pieza_y + y_offset < self.alto and 0 <= self.pieza_x + x_offset < self.ancho:
-                        self.grid[self.pieza_y + y_offset][self.pieza_x + x_offset] = self.nombre_pieza_actual
+                        gy = self.pieza_y + y_offset
+                        gx = self.pieza_x + x_offset
+                        celda_prev = self.grid[gy][gx]
+                        if isinstance(celda_prev, str) and celda_prev in self.powerups:
+                            recogidos.append((gx, gy, celda_prev))
+                        self.grid[gy][gx] = self.nombre_pieza_actual
         self.pieza_actual = None
         self.nombre_pieza_actual = None
+
+        # --- NUEVO: aplicar efectos de los power-ups recogidos ---
+        for gx, gy, pname in recogidos:
+            self.aplicar_efecto_powerup(pname, gx, gy)
+
+        # --- NUEVO: contar piezas colocadas y chequear spawn ---
+        self.stats['piezas_colocadas'] += 1
+
         self.tetris_limpiar_lineas()
+        self.verificar_condiciones_powerup(evento='PIECE_DROPPED')
         self.ejecutar_evento('ON_START')
+
+    # --- NUEVO: dice si una celda bloquea o no (los power-ups no bloquean) ---
+    def _celda_bloqueada(self, x, y):
+        if not (0 <= x < self.ancho and 0 <= y < self.alto):
+            return True
+        val = self.grid[y][x]
+        if val == 0:
+            return False
+        if isinstance(val, str) and val in self.powerups:
+            return False
+        return True
 
     def tetris_verificar_colision(self, x, y, rotacion):
         if not self.pieza_actual: return False
@@ -254,8 +333,7 @@ class Juego:
         for y_offset, fila in enumerate(matriz_pieza):
             for x_offset, celda in enumerate(fila):
                 if celda == 1:
-                    nuevo_x, nuevo_y = x + x_offset, y + y_offset
-                    if not (0 <= nuevo_x < self.ancho and 0 <= nuevo_y < self.alto and self.grid[nuevo_y][nuevo_x] == 0):
+                    if self._celda_bloqueada(x + x_offset, y + y_offset):
                         return True
         return False
 
@@ -265,7 +343,78 @@ class Juego:
         if lineas_limpias > 0:
             self.grid = [[0] * self.ancho for _ in range(lineas_limpias)] + nuevo_grid
             for _ in range(lineas_limpias): self.ejecutar_evento('ON_LINE_CLEAR')
-    
+            # --- NUEVO: pasar cuantas lineas se limpiaron de una sola vez ---
+            self.verificar_condiciones_powerup(evento='LINES_CLEARED', valor=lineas_limpias)
+
+    # ============== NUEVO: Sistema de Power-Ups ==============
+    def verificar_condiciones_powerup(self, evento=None, valor=0):
+        """Recorre los power-ups definidos y comprueba sus condiciones."""
+        for nombre, pdata in self.powerups.items():
+            for cond in pdata.get('condiciones', []):
+                tipo = cond.get('tipo')
+                umbral = cond.get('valor', 1)
+                disparado = False
+
+                if tipo == 'LINES_CLEARED' and evento == 'LINES_CLEARED':
+                    if valor >= umbral:
+                        disparado = True
+
+                elif tipo == 'ROTATIONS' and evento == 'ROTATION':
+                    if self.stats['rotaciones_totales'] >= umbral:
+                        disparado = True
+                        self.stats['rotaciones_totales'] -= umbral
+
+                elif tipo == 'ROTATIONS_PIECE' and evento == 'ROTATION':
+                    pname = cond.get('pieza')
+                    if pname and self.stats['rotaciones_por_pieza'].get(pname, 0) >= umbral:
+                        disparado = True
+                        self.stats['rotaciones_por_pieza'][pname] -= umbral
+
+                elif tipo == 'PIECES_DROPPED' and evento == 'PIECE_DROPPED':
+                    if self.stats['piezas_colocadas'] >= umbral:
+                        disparado = True
+                        self.stats['piezas_colocadas'] -= umbral
+
+                if disparado:
+                    self.spawn_powerup(nombre)
+                    return   # solo un spawn por comprobacion
+
+    def spawn_powerup(self, nombre):
+        """Coloca el power-up en una celda vacia aleatoria del tablero."""
+        if nombre not in self.powerups:
+            return
+        for _ in range(300):
+            x = random.randint(0, self.ancho - 1)
+            y = random.randint(0, self.alto - 1)
+            if self.grid[y][x] == 0:
+                self.grid[y][x] = nombre
+                return
+
+    def aplicar_efecto_powerup(self, nombre, gx, gy):
+        """Ejecuta el efecto del power-up recogido en (gx, gy)."""
+        if nombre not in self.powerups:
+            return
+        efecto = self.powerups[nombre].get('efecto', 'CLEAR_AREA')
+        self.ultimo_powerup = nombre + " (" + efecto + ")"
+
+        if efecto == 'CLEAR_AREA':
+            for dy in range(-1, 2):
+                for dx in range(-1, 2):
+                    nx, ny = gx + dx, gy + dy
+                    if 0 <= nx < self.ancho and 0 <= ny < self.alto:
+                        if not (isinstance(self.grid[ny][nx], str) and
+                                self.grid[ny][nx] in self.powerups):
+                            self.grid[ny][nx] = 0
+
+        elif efecto == 'CLEAR_ROW':
+            for x in range(self.ancho):
+                if not (isinstance(self.grid[gy][x], str) and
+                        self.grid[gy][x] in self.powerups):
+                    self.grid[gy][x] = 0
+
+        elif efecto == 'SLOW_GRAVITY':
+            self.tiempo_slow = 5.0
+
     def snake_spawn_jugador(self, accion):
         coords = accion['params'][0] if accion['params'] else [self.ancho // 2, self.alto // 2]
         self.serpiente_cuerpo = [(coords[0], coords[1])]

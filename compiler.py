@@ -17,7 +17,8 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.posicion = 0
-        self.ast = {"tipo_juego": None, "config": {}, "shapes": {}, "events": {}}
+        self.ast = {"tipo_juego": None, "config": {}, "shapes": {},
+                    "powerups": {}, "events": {}}
 
     def parse(self):
         while self.posicion < len(self.tokens):
@@ -27,7 +28,12 @@ class Parser:
             elif token_actual == 'GAME_GRID':
                 self.parsear_grid()
             elif token_actual == 'DEFINE':
-                self.parsear_shape()
+                # Diferenciar entre DEFINE SHAPE y DEFINE POWERUP
+                if (self.posicion + 1 < len(self.tokens) and
+                        self.tokens[self.posicion + 1] == 'POWERUP'):
+                    self.parsear_powerup()
+                else:
+                    self.parsear_shape()
             elif token_actual == 'ON':
                 self.parsear_evento()
             elif token_actual == 'COLORES':
@@ -111,6 +117,64 @@ class Parser:
             'CHANCE' : chance,
             'states' : estados
         }
+
+    # --- NUEVO: Parseo de definiciones de POWERUP ---
+    def parsear_powerup(self):
+        self.consumir('DEFINE')
+        self.consumir('POWERUP')
+        nombre = self.consumir()
+        self.consumir(':')
+
+        powerup = {
+            'nombre': nombre,
+            'estados': [],
+            'efecto': 'CLEAR_AREA',   # efecto por defecto
+            'color': '#FFD700',       # dorado por defecto
+            'condiciones': []
+        }
+
+        while self.posicion < len(self.tokens) and self.tokens[self.posicion] != 'END':
+            token = self.tokens[self.posicion]
+
+            if token == 'STATE':
+                self.consumir('STATE')
+                self.consumir()                # numero de estado
+                self.consumir(':')
+                matriz = []
+                while self.posicion < len(self.tokens) and self.tokens[self.posicion] == '[':
+                    fila = []
+                    self.consumir('[')
+                    while self.tokens[self.posicion] != ']':
+                        fila.append(int(self.consumir()))
+                        if self.tokens[self.posicion] == ',':
+                            self.consumir(',')
+                    self.consumir(']')
+                    matriz.append(fila)
+                powerup['estados'].append(matriz)
+
+            elif token == 'EFFECT':
+                self.consumir('EFFECT')
+                powerup['efecto'] = self.consumir()
+
+            elif token == 'COLOR':
+                self.consumir('COLOR')
+                powerup['color'] = self.consumir()
+
+            elif token == 'CONDITION':
+                self.consumir('CONDITION')
+                tipo = self.consumir()
+                cond = {'tipo': tipo}
+                # Condiciones que necesitan un nombre de pieza
+                if tipo in ('ROTATIONS_PIECE',):
+                    cond['pieza'] = self.consumir()
+                cond['valor'] = int(self.consumir())
+                powerup['condiciones'].append(cond)
+
+            else:
+                self.posicion += 1
+
+        self.consumir('END')
+        self.ast['powerups'][nombre] = powerup
 
     # --- FUNCION CORREGIDA ---
     def parsear_evento(self):

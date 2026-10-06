@@ -1,0 +1,111 @@
+{
+  "tipo_juego": "SNAKE",
+  "config": {
+    "grid_size": [
+      18,
+      18
+    ]
+  },
+  "shapes": {
+    "PIXEL": [
+      [
+        [
+          1
+        ]
+      ]
+    ]
+  },
+  "events": {
+    "ON_START": [
+      {
+        "accion": "SPAWN",
+        "objeto": "PLAYER",
+        "params": [
+          [
+            9,
+            9
+          ]
+        ]
+      },
+      {
+        "accion": "SPAWN",
+        "objeto": "FOOD",
+        "params": [
+          "RANDOM"
+        ]
+      }
+    ],
+    "ON_TICK": [
+      {
+        "accion": "MOVE",
+        "objeto": "PLAYER",
+        "params": [
+          "FORWARD"
+        ]
+      }
+    ],
+    "ON_EAT_FOOD": [
+      {
+        "accion": "INCREASE_SCORE",
+        "objeto": "10",
+        "params": []
+      },
+      {
+        "accion": "GROW",
+        "objeto": "PLAYER",
+        "params": [
+          "1"
+        ]
+      },
+      {
+        "accion": "SPAWN",
+        "objeto": "FOOD",
+        "params": [
+          "RANDOM"
+        ]
+      }
+    ],
+    "ON_COLLISION_WALL": [
+      {
+        "accion": "GAME_OVER",
+        "objeto": null,
+        "params": []
+      }
+    ],
+    "ON_COLLISION_SELF": [
+      {
+        "accion": "GAME_OVER",
+        "objeto": null,
+        "params": []
+      }
+    ],
+    "ON_KEY_UP": [
+      {
+        "accion": "SET_DIRECTION",
+        "objeto": "UP",
+        "params": []
+      }
+    ],
+    "ON_KEY_DOWN": [
+      {
+        "accion": "SET_DIRECTION",
+        "objeto": "DOWN",
+        "params": []
+      }
+    ],
+    "ON_KEY_LEFT": [
+      {
+        "accion": "SET_DIRECTION",
+        "objeto": "LEFT",
+        "params": []
+      }
+    ],
+    "ON_KEY_RIGHT": [
+      {
+        "accion": "SET_DIRECTION",
+        "objeto": "RIGHT",
+        "params": []
+      }
+    ]
+  }
+}

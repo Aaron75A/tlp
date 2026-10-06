@@ -237,4 +237,4 @@ tetris.brick
 - despues de DEFINE SHAPE: POWERUP BOMB y POWERUP SLOW
 
 
-
+contribuciones By: Aaron David Onorez Bastardo

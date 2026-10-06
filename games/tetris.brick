@@ -2,7 +2,7 @@
 
 COLORES {
     I_PIECE: "#00FFFF"
-    J_PIECE: "#0000FF"
+    X_PIECE: "#0000FF"
     L_PIECE: "#FFA500"
     O_PIECE: "#FFFF00"
     S_PIECE: "#00FF00"
@@ -16,6 +16,7 @@ GAME_GRID (10, 20)
 
 // --- Definicion de las Piezas ---
 DEFINE SHAPE I_PIECE:
+  CHANCE 16
   STATE 1:
     [0, 1, 0, 0]
     [0, 1, 0, 0]
@@ -29,6 +30,7 @@ DEFINE SHAPE I_PIECE:
 END
 
 DEFINE SHAPE L_PIECE:
+  CHANCE 14
   STATE 1:
     [0, 1, 0]
     [0, 1, 0]
@@ -48,6 +50,7 @@ DEFINE SHAPE L_PIECE:
 END
 
 DEFINE SHAPE T_PIECE:
+  CHANCE 14
   STATE 1:
     [0, 1, 0]
     [1, 1, 1]
@@ -67,6 +70,7 @@ DEFINE SHAPE T_PIECE:
 END
 
 DEFINE SHAPE O_PIECE:
+  CHANCE 14
   STATE 1:
   [0, 1, 1]
   [0, 1, 1]
@@ -74,17 +78,29 @@ DEFINE SHAPE O_PIECE:
 END
 
 DEFINE SHAPE S_PIECE:
+  CHANCE 14
   STATE 1:
-  [0, 1, 1]
-  [0, 1, 0]
+  [0, 1, 1]  STATE 2:
+  [1, 0, 0]
   [1, 1, 0]
+  [0, 1, 0]
   STATE 2:
   [1, 0, 0]
+  [1, 1, 0]
+  [0, 1, 0]
+END
+
+DEFINE SHAPE X_PIECE:
+  CHANCE 14
+  STATE 1:
+  [0, 1, 0]
   [1, 1, 1]
-  [0, 0, 1]
+  [0, 1, 0]
+
 END
 
 DEFINE SHAPE ARCH_PIECE:
+  CHANCE 14
   STATE 1:
   [1, 1, 1]
   [1, 0, 1]

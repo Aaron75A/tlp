@@ -6,6 +6,7 @@ import sys
 import re
 import json
 
+
 def lexer(codigo_fuente):
     codigo_fuente = re.sub(r'//.*', '', codigo_fuente)
     token_regex = r'\b[A-Z_]+\b|\d+|[\[\](),:{}]|#[0-9A-Fa-f]{3,6}'
@@ -83,6 +84,14 @@ class Parser:
         nombre_shape = self.consumir()
         self.consumir(':')
         estados = []
+        
+    # Leer CHANCE
+        chance = 1
+        if self.posicion < len(self.tokens) and self.tokens[self.posicion] == 'CHANCE':
+            self.consumir('CHANCE')
+            chance = int(self.consumir())
+
+        estados = []
         while self.posicion < len(self.tokens) and self.tokens[self.posicion] == 'STATE':
             self.consumir('STATE')
             self.consumir()
@@ -98,7 +107,10 @@ class Parser:
                 matriz.append(fila)
             estados.append(matriz)
         self.consumir('END')
-        self.ast['shapes'][nombre_shape] = estados
+        self.ast['shapes'][nombre_shape] = {
+            'CHANCE' : chance,
+            'states' : estados
+        }
 
     # --- FUNCION CORREGIDA ---
     def parsear_evento(self):

@@ -1,0 +1,8 @@
+En tetris.brick se agregó:
+ARCH,O, y S PIECE como nuevas piezas con sus respectivas matrices y su comportamiento
+
+En compiler.py se agregó:
+Linea que permite que el compilador lea CHANCE
+
+En runtime.py se agregó:
+Se cambió la función tetris_spawn_pieza por una que utiliza ponderaciones

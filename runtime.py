@@ -190,13 +190,34 @@ class Juego:
     # ---------------------------------------------------------------------
 
     def tetris_spawn_pieza(self):
-        nombre_pieza = random.choice(list(self.datos_juego['shapes'].keys()))
-        self.pieza_actual = self.datos_juego['shapes'][nombre_pieza]
+        shapes = self.datos_juego['shapes']
+
+        nombres = list(shapes.keys())
+        pesos = []
+
+        for nombre in nombres:
+            pesos.append(shapes[nombre].get('CHANCE', 1))
+
+        total = sum(pesos)
+
+        numero = random.uniform(0, total)
+        acumulado = 0
+
+        for i in range(len(nombres)):
+            acumulado += pesos[i]
+
+            if numero <= acumulado:
+                nombre_pieza = nombres[i]
+                break
+
+        self.pieza_actual = shapes[nombre_pieza]['states']
         self.nombre_pieza_actual = nombre_pieza
         self.pieza_x, self.pieza_y, self.pieza_rotacion = self.ancho // 2 - 2, 0, 0
-        if self.tetris_verificar_colision(self.pieza_x, self.pieza_y, self.pieza_rotacion):
-            self.juego_terminado = True
 
+        if self.tetris_verificar_colision(
+            self.pieza_x, self.pieza_y, self.pieza_rotacion):
+            self.juego_terminado = True
+    
     def tetris_mover_pieza(self, direccion):
         if not self.pieza_actual: return
         dx, dy = 0, 0

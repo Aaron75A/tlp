@@ -184,16 +184,28 @@ class Juego:
                     if celda == 1:
                         self.dibujar_celda(self.pieza_x + x_offset, self.pieza_y + y_offset, color_actual)
         
-        # 3. Dibujar Snake y Comida
+    # 3. Dibujar Snake y Comida
         if self.tipo_juego == 'SNAKE':
             if self.posicion_comida:
                 x, y = self.posicion_comida
                 self.dibujar_celda(x, y, COLOR_FOOD)
-                #CUerpo de la serpiente
+            
+            # Leer el tipo de forma definido en el archivo brick (por defecto RECTANGLE)
+            forma = self.datos_juego.get('shapes', {}).get('PIXEL', {}).get('tipo_forma', 'RECTANGLE')
+
+            # Cuerpo de la serpiente
             for i, segmento in enumerate(self.serpiente_cuerpo):
                 x, y = segmento
                 color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
-                self.dibujar_celda(x, y, color)
+                
+                # Seleccionar la función de dibujo según la forma
+                if forma == 'CIRCLE':
+                    self.dibujar_celda_circular(x, y, color)
+                elif forma == 'TRIANGLE':
+                    self.dibujar_celda_triangular(x, y, color)
+                else:
+                    self.dibujar_celda(x, y, color)
+
 
     def dibujar_celda(self, x, y, color):
         ts = self.taman_celda # Alias para taman de celda
@@ -201,6 +213,21 @@ class Juego:
         x2, y2 = x1 + ts, y1 + ts
         self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline='#000000')
 
+
+    def dibujar_celda_circular(self, x, y, color):
+        ts = self.taman_celda
+        x1, y1 = x * ts, y * ts
+        x2, y2 = x1 + ts, y1 + ts
+        self.canvas.create_oval(x1, y1, x2, y2, fill=color, outline='#000000')
+
+    def dibujar_celda_triangular(self, x, y, color):
+        ts = self.taman_celda
+        x1, y1 = x * ts, y * ts
+        x2, y2 = x1 + ts, y1 + ts
+        # esto dibuja un triangulo apuntando hacia arriba
+        self.canvas.create_polygon(x1, y2, (x1+x2)/2, y1, x2, y2, fill=color, outline='#000000')
+
+    
     # --- NUEVO: dibujo especial para los power-ups (un circulo brillante) ---
     def dibujar_celda_powerup(self, x, y, color):
         ts = self.taman_celda

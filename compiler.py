@@ -90,8 +90,11 @@ class Parser:
         nombre_shape = self.consumir()
         self.consumir(':')
         estados = []
-        
-    # Leer CHANCE
+        tipo_forma = 'RECTANGLE'
+        if self.posicion < len(self.tokens) and self.tokens[self.posicion] == 'TYPE':
+            self.consumir('TYPE')
+            tipo_forma = self.consumir()
+
         chance = 1
         if self.posicion < len(self.tokens) and self.tokens[self.posicion] == 'CHANCE':
             self.consumir('CHANCE')
@@ -115,7 +118,8 @@ class Parser:
         self.consumir('END')
         self.ast['shapes'][nombre_shape] = {
             'CHANCE' : chance,
-            'states' : estados
+            'states' : estados,
+            'tipo_forma' : tipo_forma
         }
 
     # --- NUEVO: Parseo de definiciones de POWERUP ---

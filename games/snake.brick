@@ -5,6 +5,7 @@ GAME_GRID (18, 18)
 
 # --- Definicion de Elementos ---
 DEFINE SHAPE PIXEL:
+  TYPE CIRCLE
   STATE 1:
     [1]
 END

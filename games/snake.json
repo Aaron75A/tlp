@@ -7,14 +7,19 @@
     ]
   },
   "shapes": {
-    "PIXEL": [
-      [
+    "PIXEL": {
+      "CHANCE": 1,
+      "states": [
         [
-          1
+          [
+            1
+          ]
         ]
-      ]
-    ]
+      ],
+      "tipo_forma": "CIRCLE"
+    }
   },
+  "powerups": {},
   "events": {
     "ON_START": [
       {

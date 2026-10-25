@@ -1,0 +1,49 @@
+tetris_reborn_changes
+resumen de la sesion
+
+
+archivo: compiler.py
+
+- linea 10-11: en lexer, comentarios cambiados a // y regex con {} y colores
+- linea 19: se agrego "powerups" al AST
+- lineas 28-29: parse distingue DEFINE SHAPE de DEFINE POWERUP
+- lineas 32-33: parse detecta COLORES
+- lineas 62-79: metodo nuevo parsear_colores
+- lineas 68-72 y 89: parsear_shape lee CHANCE y guarda shapes como dict con CHANCE y states
+- despues de linea 101: metodo nuevo parsear_powerup
+
+
+archivo: runtime.py
+
+- lineas 23-26: se agregaron colores_piezas y nombre_pieza_actual
+- despues de linea 26: se agregaron powerups, stats, tiempo_slow y ultimo_powerup
+- lineas 47-50: etiqueta nueva label_powerup en la GUI
+- lineas 77-80: game_loop usa velocidad_efectiva para respetar el slow
+- linea 118 en adelante: dibujar actualiza label_powerup
+- lineas 128-132: dibujar distingue power-ups con circulo
+- despues de linea 156: metodo nuevo dibujar_celda_powerup
+- lineas 174-180: tetris_spawn_pieza con seleccion ponderada por CHANCE
+- lineas 175-183: se guarda nombre_pieza_actual al spawnear
+- lineas 190-194: tetris_rotar_pieza cuenta rotaciones
+- lineas 197-211: tetris_fijar_pieza recoge power-ups y cuenta piezas
+- antes de linea 213: metodo nuevo _celda_bloqueada
+- lineas 213-218: tetris_verificar_colision usa _celda_bloqueada
+- lineas 228-232: tetris_limpiar_lineas pasa lineas limpiadas a las condiciones
+- despues de limpiar_lineas: metodos nuevos verificar_condiciones_powerup, spawn_powerup y aplicar_efecto_powerup
+
+
+archivo: games/tetris.brick
+
+- todo el archivo: comentarios pasan de # a //
+- despues de GAME_GRID: bloque COLORES
+- cada DEFINE SHAPE: se agrega CHANCE N
+- pieza J_PIECE: pasa a X_PIECE con forma de cruz
+- despues de los DEFINE SHAPE: bloques DEFINE POWERUP BOMB y SLOW
+
+archivo: games/tetris.bnf
+
+- Se modificó el archivo .bnf para incluir y explicar los conceptos de CHANCE" y "COLOR" dentro de la gramática.
+
+
+contribuciones By: Aaron David Onorez Bastardo (COLORES, POWERUPS)
+contribuciones By: Juan Jose Bran Cano (AGREGO PIEZAS, CAMBIO EN LA CHANCE DE APARICIÓN DE PIEZAS, CAMBIO EN EL .bnf)

@@ -125,48 +125,6 @@
         ]
       }
     ],
-    "ON_EAT_POISON": [
-      {
-        "accion": "DECREASE_SCORE",
-        "objeto": "10",
-        "params": []
-      },
-      {
-        "accion": "SHRINK",
-        "objeto": "PLAYER",
-        "params": [
-          "1"
-        ]
-      },
-      {
-        "accion": "SPAWN",
-        "objeto": "POISON",
-        "params": [
-          "RANDOM"
-        ]
-      }
-    ],
-    "ON_CLOUD_COLLISION": [
-      {
-        "accion": "DECREASE_SCORE",
-        "objeto": "10",
-        "params": []
-      },
-      {
-        "accion": "FULL_SHRINK",
-        "objeto": "PLAYER",
-        "params": [
-          "1"
-        ]
-      },
-      {
-        "accion": "SPAWN",
-        "objeto": "CLOUD",
-        "params": [
-          "RANDOM"
-        ]
-      }
-    ],
     "ON_COLLISION_WALL": [
       {
         "accion": "GAME_OVER",
@@ -208,6 +166,49 @@
         "objeto": "RIGHT",
         "params": []
       }
+    ],
+    "ON_EAT_POISON": [
+      {
+        "accion": "DECREASE_SCORE",
+        "objeto": "10",
+        "params": [
+          "SHRINK"
+        ]
+      },
+      {
+        "accion": "PLAYER",
+        "objeto": "1",
+        "params": []
+      },
+      {
+        "accion": "SPAWN",
+        "objeto": "POISON",
+        "params": [
+          "RANDOM"
+        ]
+      }
+    ],
+    "ON_CLOUD_COLLISION": [
+      {
+        "accion": "DECREASE_SCORE",
+        "objeto": "10",
+        "params": [
+          "FULL_SHRINK"
+        ]
+      },
+      {
+        "accion": "PLAYER",
+        "objeto": "1",
+        "params": []
+      },
+      {
+        "accion": "SPAWN",
+        "objeto": "CLOUD",
+        "params": [
+          "RANDOM"
+        ]
+      }
     ]
-  }
+  },
+  "nivel": "BABY"
 }

@@ -1,7 +1,9 @@
-<programa> ::= <tipo_juego> <grid> <definiciones> <eventos>
+<programa> ::= <tipo_juego> <nivel_juego> <grid> <definiciones> <eventos> | <tipo_juego> <grid> <definiciones> <eventos>
 
 <tipo_juego> ::= "GAME_TYPE" "SNAKE"
 <grid>       ::= "GAME_GRID" "(" <numero> "," <numero> ")"
+<nivel_juego> ::= "LEVEL" <opcion_nivel>
+<opcion_nivel> ::= "BABY" | "ENTUSIASTA" | "NYAN" "CAT"
 
 <definiciones> ::= <definicion> | <definicion> <definiciones>
 <definicion>   ::= <definicion_shape> | <definicion_powerup>

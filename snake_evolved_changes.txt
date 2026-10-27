@@ -1,10 +1,6 @@
 snake_reborn_changes
 
-resumen de la sesion
-
-
-
-
+Cambios hechos por Juan Jose
 
 archivo: runtime.py
 
@@ -71,7 +67,67 @@ archivo: snake.bnf
 - Se registraron formalmente nuevas entidades (POISON, CLOUD), eventos (EAT_POISON, CLOUD_COLLISION) y acciones (DECREASE_SCORE, SHRINK, FULL_SHRINK).
 
 
+Cambios hechos por Aaron David
+
+archivo: compiler.py
 
 
 
-contribuciones By: Juan Jose Bran Cano (mecánicas de nube, veneno, invencibilidad, actualización bnf)
+- en parse: se agregó la detección del token 'LEVEL' para habilitar la lectura de dificultad.
+
+- nuevo método: parsear_nivel integrado para extraer el nivel y guardarlo en el AST (soportando nombres compuestos como NYAN CAT).
+
+- en parsear_evento: se añadieron las palabras reservadas SHRINK, FULL_SHRINK, DECREASE_SCORE y CLOUD_COLLISION a la lista de exclusión para corregir el bug que impedía leer los parámetros y actualizar el .json.
+
+
+
+
+
+archivo: runtime.py
+
+
+
+- en __init__: se ajustó la inicialización de self.nivel y se añadió la variable self.en_menu para pausar el arranque automático.
+
+- en run: se modificó la lógica para mostrar el menú interactivo antes de llamar a game_loop.
+
+- nuevo método: dibujar_menu creado para renderizar las opciones de dificultad en el Canvas (Baby, Entusiasta, Nyan Cat).
+
+- nuevo método: iniciar_juego_snake creado para asignar self.nivel, velocidad, apagar el menú y arrancar los spawns (ON_START).
+
+- en manejar_input_gui: se añadió la intercepción de las teclas '1', '2' y '3' para configurar e iniciar la dificultad desde el menú.
+
+- en ejecutar_evento (verbo FULL_SHRINK): se aplicó la regla estricta de colisión en Nyan Cat (GAME_OVER si el puntaje es 0, de lo contrario el puntaje se reduce a 0).
+
+- en snake_spawn_veneno: se restringió la aparición de veneno durante el nivel BABY.
+
+- en snake_spawn_cloud: se bloqueó la aparición de nubes obstáculo en los niveles BABY y ENTUSIASTA.
+
+- en dibujar: se implementó el renderizado visual de Nyan Cat (cabeza rosada circular fija y segmentos de cola alternando la lista colores_arcoiris).
+
+
+
+
+
+archivo: snake.brick
+
+
+
+- configuración inicial: se habilitó y probó la declaración de la instrucción opcional LEVEL debajo de GAME_TYPE (ej. LEVEL NYAN CAT).
+
+
+
+
+
+archivo: snake.bnf
+
+
+
+- regla <programa>: se actualizó para aceptar la instrucción opcional <nivel_juego> al inicio de la gramática.
+
+- nuevas reglas: se definieron formalmente <nivel_juego> y <opcion_nivel> para reconocer los parámetros "BABY", "ENTUSIASTA" y "NYAN" "CAT".
+
+
+Contribuciones By: Juan Jose Bran Cano (mecánicas de nube, veneno, invencibilidad, actualización bnf)
+
+Contribuciones by: Aaron David Onorez Bastardo (Con la integracion de niveles, cuerpo circular o triangular, Menu de niveles, restriccion de algunas habilidades o condiciones para ciertos niveles y Cabeza estilo Nyan Cat)

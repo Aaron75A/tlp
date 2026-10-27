@@ -267,6 +267,8 @@ class Parser:
                 self.parsear_tipo_juego()
             elif token_actual == 'GAME_GRID':
                 self.parsear_grid()
+            elif token_actual == 'LEVEL':
+                self.parsear_nivel()
             elif token_actual == 'DEFINE':
                 # Diferenciar entre DEFINE SHAPE y DEFINE POWERUP
                 if (self.posicion + 1 < len(self.tokens) and
@@ -292,7 +294,7 @@ class Parser:
         if token_esperado:
             raise Exception("Error de sintaxis: Se esperaba '" + token_esperado + "' pero se llego al final del archivo.")
         return None
-
+    
     def parsear_tipo_juego(self):
         self.consumir('GAME_TYPE')
         self.ast['tipo_juego'] = self.consumir()
@@ -305,6 +307,13 @@ class Parser:
         alto = int(self.consumir())
         self.consumir(')')
         self.ast['config']['grid_size'] = [ancho, alto]
+
+    def parsear_nivel(self):
+        self.consumir('LEVEL')
+        nivel = self.consumir()
+        if self.posicion < len(self.tokens) and self.tokens[self.posicion] == 'CAT':
+            nivel += '_' +  self.consumir('CAT')
+        self.ast['nivel'] = nivel
 
     def parsear_colores(self):
         self.consumir('COLORES')

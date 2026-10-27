@@ -1,5 +1,5 @@
-# snake.brick
 GAME_TYPE SNAKE
+LEVEL BABY
 
 GAME_GRID (18, 18)
 

@@ -77,23 +77,47 @@ class Juego:
             self.pieza_actual = None
             self.pieza_x, self.pieza_y, self.pieza_rotacion = 0, 0, 0
             self.velocidad_gravedad = 0.4
-        
+       
         if self.tipo_juego == 'SNAKE':
             self.serpiente_cuerpo = []
             self.serpiente_direccion = (1, 0)
             self.posicion_comida = None
             self.posicion_veneno = None
             self.posicion_nube = None
-            self.velocidad_gravedad = 0.15
-        
+            self.nivel = 'BABY'             # este es el nivel por defecto
+            self.velocidad_gravedad = 0.15  # velocidad por defecto
+
         self.timer_gravedad = 0
-        self.ejecutar_evento('ON_START')
-        self.timer_id = None # Para controlar el loop de Tkinter
+        self.timer_id = None
+        
+        # --- NUEVO: Control del menú ---
+        self.en_menu = True if self.tipo_juego == 'SNAKE' else False
+        if not self.en_menu:
+            self.ejecutar_evento('ON_START')
 
     def run(self):
-        # Inicia el ciclo principal de juego de Tkinter
-        self.root.after(50, self.game_loop) 
-        self.root.mainloop() 
+        if self.en_menu:
+            self.dibujar_menu()
+        else:
+            self.root.after(50, self.game_loop) 
+        self.root.mainloop()
+
+    def dibujar_menu(self):
+        self.canvas.delete("all")
+        # Dibuja el texto centrado en la pantalla
+        cx, cy = self.ancho_canvas / 2, self.alto_canvas / 2
+        self.canvas.create_text(cx, cy - 60, text="SELECCIONA DIFICULTAD", fill="white", font=('Consolas', 14, 'bold'))
+        self.canvas.create_text(cx, cy - 10, text="1. BABY (Fácil)", fill="#00FF00", font=('Consolas', 12, 'bold'))
+        self.canvas.create_text(cx, cy + 20, text="2. ENTUSIASTA (Medio)", fill="#FFFF00", font=('Consolas', 12, 'bold'))
+        self.canvas.create_text(cx, cy + 50, text="3. NYAN CAT (Extremo)", fill="#FFB6C1", font=('Consolas', 12, 'bold'))
+        self.canvas.create_text(cx, cy + 100, text="Presiona 1, 2 o 3 para iniciar", fill="gray", font=('Consolas', 10))
+
+    def iniciar_juego_snake(self, nivel, velocidad):
+        self.nivel = nivel
+        self.velocidad_gravedad = velocidad
+        self.en_menu = False
+        self.ejecutar_evento('ON_START') # Spawnea al jugador y obstáculos
+        self.root.after(50, self.game_loop) #despues de presionar se inicia el juego
 
     def game_loop(self):
         if self.juego_terminado:
@@ -135,6 +159,13 @@ class Juego:
 
     def manejar_input_gui(self, event):
         key = event.keysym.upper()
+
+        #el mapeo de las teclas en el menu inicial
+        if self.en_menu:
+            if key == '1': self.iniciar_juego_snake('BABY', 0.15)
+            elif key == '2': self.iniciar_juego_snake('ENTUSIASTA', 0.12)
+            elif key == '3': self.iniciar_juego_snake('NYAN_CAT', 0.10)
+            return
         
         # Mapeo de teclas de flecha
         if self.tipo_juego == 'TETRIS':
@@ -216,12 +247,19 @@ class Juego:
             forma = self.datos_juego.get('shapes', {}).get('PIXEL', {}).get('tipo_forma', 'RECTANGLE')
 
             # Cuerpo de la serpiente
+            colores_arcoiris = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3']
+            
             for i, segmento in enumerate(self.serpiente_cuerpo):
                 x, y = segmento
-                color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
                 
-                # Seleccionar la función de dibujo según la forma
-                if forma == 'CIRCLE':
+                # Color y efecto Nyan Cat
+                if self.nivel == 'NYAN_CAT':
+                    color = '#FFB6C1' if i == 0 else colores_arcoiris[i % len(colores_arcoiris)]
+                else:
+                    color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
+                
+                # Forma de dibujo
+                if forma == 'CIRCLE' or (self.nivel == 'NYAN_CAT' and i == 0):
                     self.dibujar_celda_circular(x, y, color)
                 elif forma == 'TRIANGLE':
                     self.dibujar_celda_triangular(x, y, color)
@@ -290,7 +328,15 @@ class Juego:
                         self.stats['comida_devorada'] += 1
                         self.verificar_condiciones_powerup(evento='EAT_FOOD')
                     if verbo == 'SHRINK': self.snake_encoger(accion)
-                    if verbo == 'FULL_SHRINK': self.snake_encoger_todo(accion)
+                    if verbo == 'FULL_SHRINK': 
+                        if self.nivel == 'NYAN_CAT':
+                            if self.puntuacion <= 0:
+                                self.juego_terminado = True
+                            else:
+                                self.puntuacion = 0
+                        else:
+                            self.puntuacion = 0
+                        self.snake_encoger_todo(accion)
 
     # METODOS DE LOGICA DE JUEGO (MANTENIDOS DEL ARCHIVO ORIGINAL)
     # ---------------------------------------------------------------------
@@ -523,16 +569,18 @@ class Juego:
                 break
 
     def snake_spawn_veneno(self):
+        if self.nivel == 'BABY': return # En Baby no hay veneno
         while True:
             x, y = random.randint(0, self.ancho - 1), random.randint(0, self.alto - 1)
-            if (x, y) not in self.serpiente_cuerpo and (x, y) != self.posicion_comida:
+            if (x, y) not in self.serpiente_cuerpo and (x, y) != getattr(self, 'posicion_comida', None):
                 self.posicion_veneno = (x, y)
                 break
 
     def snake_spawn_cloud(self):
+        if self.nivel in ['BABY', 'ENTUSIASTA']: return # Solo en Nyan Cat
         while True:
             x, y = random.randint(0, self.ancho - 1), random.randint(0, self.alto - 1)
-            if (x, y) not in self.serpiente_cuerpo and (x, y) != self.posicion_comida and (x, y) != self.posicion_veneno:
+            if (x, y) not in self.serpiente_cuerpo and (x, y) != getattr(self, 'posicion_comida', None) and (x, y) != getattr(self, 'posicion_veneno', None):
                 self.posicion_nube = (x, y)
                 break
 

@@ -1,0 +1,77 @@
+snake_reborn_changes
+
+resumen de la sesion
+
+
+
+
+
+archivo: runtime.py
+
+
+
+- en __init__: se agregó 'comida_devorada' a stats para rastrear progreso de power-ups.
+
+- en __init__: se añadieron las variables 'tiempo_invencible' y 'tiempo_mensaje'.
+
+- en __init__: se actualizaron los textos de label_controles para explicar mecánicas de Comida, Veneno y Nube.
+
+- en game_loop: se implementó el uso seguro de temporizadores con getattr() para evitar congelamientos.
+
+- en dibujar: se actualizó la lógica para borrar el texto de label_powerup automáticamente cuando el tiempo llega a 0.
+
+- en dibujar: renderizado visual ajustado para usar dibujar_celda_circular en POISON y dibujar_celda_triangular en CLOUD.
+
+- en ejecutar_evento: se añadió lógica de GAME_OVER automático si DECREASE_SCORE baja la puntuación de 0.
+
+- en ejecutar_evento: se vinculó SPAWN CLOUD.
+
+- en ejecutar_evento (verbo GROW): se añadió el contador de comida_devorada y llamada a verificar_condiciones_powerup(evento='EAT_FOOD').
+
+- en verificar_condiciones_powerup: se integró soporte para la nueva condición FOOD_EATEN.
+
+- en aplicar_efecto_powerup: se añadió comportamiento para el efecto INVINCIBLE (5-10 segs de inmunidad).
+
+- en snake_mover_jugador: reescritura masiva. Se añadió invencibilidad tipo Pac-Man (traspasar paredes).
+
+- en snake_mover_jugador: se añadió recolección de power-ups directamente desde el grid.
+
+- en snake_mover_jugador: la serpiente ahora ignora colisiones con su cuerpo, veneno y nube si es invencible.
+
+- en snake_mover_jugador: se añadió ejecución de evento ON_CLOUD_COLLISION y respawn automático de nube.
+
+- nuevos métodos: snake_encoger y snake_encoger_todo (FULL_SHRINK) para castigos de colisión.
+
+
+
+
+
+archivo: snake.brick
+
+
+
+- bloque DEFINE SHAPE CLOUD: añadido con atributo TYPE TRIANGLE.
+
+- bloque DEFINE POWERUP INVINCIBILITY: añadido con EFFECT INVINCIBLE, color #ff00bf y CONDITION FOOD_EATEN 5.
+
+- bloque ON START: se agregó el comando SPAWN CLOUD AT RANDOM.
+
+
+
+
+
+archivo: snake.bnf
+
+
+
+- Se modificó la gramática para soportar geometrías formales (TYPE CIRCLE, TYPE TRIANGLE).
+
+- Se añadió la estructura completa para declarar DEFINE POWERUP con sus efectos y la condición FOOD_EATEN.
+
+- Se registraron formalmente nuevas entidades (POISON, CLOUD), eventos (EAT_POISON, CLOUD_COLLISION) y acciones (DECREASE_SCORE, SHRINK, FULL_SHRINK).
+
+
+
+
+
+contribuciones By: Juan Jose Bran Cano (mecánicas de nube, veneno, invencibilidad, actualización bnf)

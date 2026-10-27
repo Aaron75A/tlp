@@ -1,0 +1,473 @@
+{
+  "tipo_juego": "TETRIS",
+  "config": {
+    "colores_piezas": {
+      "I_PIECE": "#00FFFF",
+      "X_PIECE": "#0000FF",
+      "L_PIECE": "#FFA500",
+      "O_PIECE": "#FFFF00",
+      "S_PIECE": "#00FF00",
+      "T_PIECE": "#800080",
+      "ARCH_PIECE": "#FF0000"
+    },
+    "grid_size": [
+      10,
+      20
+    ]
+  },
+  "shapes": {
+    "I_PIECE": {
+      "CHANCE": 20,
+      "states": [
+        [
+          [
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0
+          ]
+        ]
+      ]
+    },
+    "L_PIECE": {
+      "CHANCE": 14,
+      "states": [
+        [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            1
+          ]
+        ],
+        [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ]
+      ]
+    },
+    "T_PIECE": {
+      "CHANCE": 14,
+      "states": [
+        [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ]
+      ]
+    },
+    "O_PIECE": {
+      "CHANCE": 14,
+      "states": [
+        [
+          [
+            0,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            1
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ]
+      ]
+    },
+    "S_PIECE": {
+      "CHANCE": 14,
+      "states": [
+        [
+          [
+            0,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            1,
+            0
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            0,
+            1
+          ]
+        ]
+      ]
+    },
+    "X_PIECE": {
+      "CHANCE": 14,
+      "states": [
+        [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ]
+      ]
+    },
+    "ARCH_PIECE": {
+      "CHANCE": 14,
+      "states": [
+        [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            1
+          ],
+          [
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            1,
+            1
+          ]
+        ],
+        [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            1,
+            0,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            1,
+            0,
+            0
+          ],
+          [
+            1,
+            1,
+            0
+          ]
+        ]
+      ]
+    }
+  },
+  "powerups": {
+    "BOMB": {
+      "nombre": "BOMB",
+      "estados": [
+        [
+          [
+            1
+          ]
+        ]
+      ],
+      "efecto": "CLEAR_AREA",
+      "color": "#FF3300",
+      "condiciones": [
+        {
+          "tipo": "LINES_CLEARED",
+          "valor": 3
+        },
+        {
+          "tipo": "ROTATIONS_PIECE",
+          "pieza": "L_PIECE",
+          "valor": 10
+        }
+      ]
+    },
+    "SLOW": {
+      "nombre": "SLOW",
+      "estados": [
+        [
+          [
+            1
+          ]
+        ]
+      ],
+      "efecto": "SLOW_GRAVITY",
+      "color": "#00AAFF",
+      "condiciones": [
+        {
+          "tipo": "PIECES_DROPPED",
+          "valor": 8
+        }
+      ]
+    }
+  },
+  "events": {
+    "ON_START": [
+      {
+        "accion": "SPAWN",
+        "objeto": "RANDOM_SHAPE",
+        "params": []
+      }
+    ],
+    "ON_TICK": [
+      {
+        "accion": "MOVE",
+        "objeto": "CURRENT_PIECE",
+        "params": [
+          "DOWN"
+        ]
+      }
+    ],
+    "ON_LINE_CLEAR": [
+      {
+        "accion": "INCREASE_SCORE",
+        "objeto": "100",
+        "params": []
+      }
+    ],
+    "ON_KEY_LEFT": [
+      {
+        "accion": "MOVE",
+        "objeto": "CURRENT_PIECE",
+        "params": [
+          "LEFT"
+        ]
+      }
+    ],
+    "ON_KEY_RIGHT": [
+      {
+        "accion": "MOVE",
+        "objeto": "CURRENT_PIECE",
+        "params": [
+          "RIGHT"
+        ]
+      }
+    ],
+    "ON_KEY_DOWN": [
+      {
+        "accion": "MOVE",
+        "objeto": "CURRENT_PIECE",
+        "params": [
+          "DOWN"
+        ]
+      }
+    ],
+    "ON_KEY_UP": [
+      {
+        "accion": "ROTATE",
+        "objeto": "CURRENT_PIECE",
+        "params": []
+      }
+    ]
+  }
+}

@@ -159,3 +159,165 @@ END
 ON KEY_UP:
   ROTATE CURRENT_PIECE
 END
+
+// tetris.brick
+
+COLORES {
+    I_PIECE: "#00FFFF"
+    X_PIECE: "#0000FF"
+    L_PIECE: "#FFA500"
+    O_PIECE: "#FFFF00"
+    S_PIECE: "#00FF00"
+    T_PIECE: "#800080"
+    ARCH_PIECE: "#FF0000"
+}
+
+GAME_TYPE TETRIS
+
+GAME_GRID (10, 20)
+
+// --- Definicion de las Piezas ---
+DEFINE SHAPE I_PIECE:
+  CHANCE 20
+  STATE 1:
+    [0, 1, 0, 0]
+    [0, 1, 0, 0]
+    [0, 1, 0, 0]
+    [0, 1, 0, 0]
+  STATE 2:
+    [0, 0, 0, 0]
+    [1, 1, 1, 1]
+    [0, 0, 0, 0]
+    [0, 0, 0, 0]
+END
+
+DEFINE SHAPE L_PIECE:
+  CHANCE 14
+  STATE 1:
+    [0, 1, 0]
+    [0, 1, 0]
+    [0, 1, 1]
+  STATE 2:
+    [0, 0, 0]
+    [1, 1, 1]
+    [1, 0, 0]
+  STATE 3:
+    [1, 1, 0]
+    [0, 1, 0]
+    [0, 1, 0]
+  STATE 4:
+    [0, 0, 1]
+    [1, 1, 1]
+    [0, 0, 0]
+END
+
+DEFINE SHAPE T_PIECE:
+  CHANCE 14
+  STATE 1:
+    [0, 1, 0]
+    [1, 1, 1]
+    [0, 0, 0]
+  STATE 2:
+    [0, 1, 0]
+    [0, 1, 1]
+    [0, 1, 0]
+  STATE 3:
+    [0, 0, 0]
+    [1, 1, 1]
+    [0, 1, 0]
+  STATE 4:
+    [0, 1, 0]
+    [1, 1, 0]
+    [0, 1, 0]
+END
+
+DEFINE SHAPE O_PIECE:
+  CHANCE 14
+  STATE 1:
+  [0, 1, 1]
+  [0, 1, 1]
+  [0, 0, 0]   
+END
+
+DEFINE SHAPE S_PIECE:
+  CHANCE 14
+  STATE 1:
+  [0, 1, 1]
+  [1, 1, 0]
+
+  STATE 2:
+  [1, 0,] 
+  [1, 1,] 
+  [0, 1,]
+END
+
+DEFINE SHAPE X_PIECE:
+  CHANCE 14
+  STATE 1:
+  [0, 1, 0]
+  [1, 1, 1]
+  [0, 1, 0]
+END
+
+DEFINE SHAPE ARCH_PIECE:
+  CHANCE 14
+  STATE 1:
+  [1, 1, 1]
+  [1, 0, 1]
+  [0, 0, 0]
+  STATE 2: 
+  [0, 1, 1]
+  [0, 0, 1]
+  [0, 1, 1]
+  STATE 3:
+  [0, 0, 0]
+  [1, 0, 1]
+  [1, 1, 1]
+  STATE 4:
+  [1, 1, 0]
+  [1, 0, 0]
+  [1, 1, 0]  
+END
+
+DEFINE POWERUP BOMB:
+    STATE 1: [1]
+    EFFECT CLEAR_AREA
+    COLOR #FF3300
+    CONDITION LINES_CLEARED 3
+    CONDITION ROTATIONS_PIECE L_PIECE 10
+END
+
+DEFINE POWERUP SLOW:
+    STATE 1: [1]
+    EFFECT SLOW_GRAVITY
+    COLOR #00AAFF
+    CONDITION PIECES_DROPPED 8
+END
+
+// --- Logica y Reglas ---
+ON START:
+  SPAWN RANDOM_SHAPE
+END
+
+// ON_TICK es el evento que controla la gravedad
+ON TICK:
+  MOVE CURRENT_PIECE DOWN
+END
+
+ON LINE_CLEAR:
+  INCREASE_SCORE 100
+END
+
+// --- Controles ---
+ON KEY_LEFT:
+  MOVE CURRENT_PIECE LEFT
+END
+ON KEY_RIGHT:
+  MOVE CURRENT_PIECE RIGHT
+END
+ON KEY_DOWN:
+  MOVE CURRENT_PIECE DOWN
+END
+ON KEY_UP:
+  ROTATE CURRENT_PIECE
+END

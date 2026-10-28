@@ -246,7 +246,7 @@ class Juego:
             # Leer el tipo de forma definido en el archivo brick (por defecto RECTANGLE)
             forma = self.datos_juego.get('shapes', {}).get('PIXEL', {}).get('tipo_forma', 'RECTANGLE')
 
-            # Cuerpo de la serpiente
+            #Cuerpo de la serpiente
             colores_arcoiris = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#4B0082', '#9400D3']
             
             for i, segmento in enumerate(self.serpiente_cuerpo):
@@ -257,9 +257,9 @@ class Juego:
                     color = '#FFB6C1' if i == 0 else colores_arcoiris[i % len(colores_arcoiris)]
                 else:
                     color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
-                
-                # Forma de dibujo
-                if forma == 'CIRCLE' or (self.nivel == 'NYAN_CAT' and i == 0):
+                if self.nivel == 'NYAN_CAT' and i == 0:
+                    self.dibujar_celda_gato(x, y, color) # Usamos la nueva cabeza con rasgos de gato
+                elif forma == 'CIRCLE':
                     self.dibujar_celda_circular(x, y, color)
                 elif forma == 'TRIANGLE':
                     self.dibujar_celda_triangular(x, y, color)
@@ -286,7 +286,30 @@ class Juego:
         x2, y2 = x1 + ts, y1 + ts
         # esto dibuja un triangulo apuntando hacia arriba
         self.canvas.create_polygon(x1, y2, (x1+x2)/2, y1, x2, y2, fill=color, outline='#000000')
-
+    
+    def dibujar_celda_gato(self, x, y, color):
+        ts = self.taman_celda
+        x1, y1 = x * ts, y * ts
+        x2, y2 = x1 + ts, y1 + ts
+        
+        # 1. Dibujar orejas (polígonos por detrás de la cabeza)
+        self.canvas.create_polygon(x1 + ts*0.1, y1 + ts*0.3, x1 + ts*0.2, y1 - ts*0.1, x1 + ts*0.4, y1 + ts*0.1, fill=color, outline='#000000')
+        self.canvas.create_polygon(x2 - ts*0.1, y1 + ts*0.3, x2 - ts*0.2, y1 - ts*0.1, x2 - ts*0.4, y1 + ts*0.1, fill=color, outline='#000000')
+        
+        # 2. Dibujar la cabeza (círculo base)
+        self.canvas.create_oval(x1, y1, x2, y2, fill=color, outline='#000000')
+        
+        # 3. Dibujar ojos
+        self.canvas.create_oval(x1 + ts*0.2, y1 + ts*0.3, x1 + ts*0.4, y1 + ts*0.5, fill='black')
+        self.canvas.create_oval(x1 + ts*0.6, y1 + ts*0.3, x1 + ts*0.8, y1 + ts*0.5, fill='black')
+        
+        # 4. Dibujar bigotes
+        # Lado izquierdo
+        self.canvas.create_line(x1 - ts*0.3, y1 + ts*0.5, x1 + ts*0.1, y1 + ts*0.6, fill='black')
+        self.canvas.create_line(x1 - ts*0.3, y1 + ts*0.7, x1 + ts*0.1, y1 + ts*0.65, fill='black')
+        # Lado derecho
+        self.canvas.create_line(x2 + ts*0.3, y1 + ts*0.5, x2 - ts*0.1, y1 + ts*0.6, fill='black')
+        self.canvas.create_line(x2 + ts*0.3, y1 + ts*0.7, x2 - ts*0.1, y1 + ts*0.65, fill='black')
     
     # --- NUEVO: dibujo especial para los power-ups (un circulo brillante) ---
     def dibujar_celda_powerup(self, x, y, color):

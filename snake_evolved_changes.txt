@@ -105,7 +105,7 @@ archivo: runtime.py
 
 - en dibujar: se implementó el renderizado visual de Nyan Cat (cabeza rosada circular fija y segmentos de cola alternando la lista colores_arcoiris).
 
-
+- se agrego una nuevo metodo para dibujar la cabeza del nyancat con rasgos llamado 'dibujar celda gato', se actualizo la asignacion de colores.
 
 
 

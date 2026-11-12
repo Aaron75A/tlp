@@ -37,6 +37,14 @@ class Juego:
         self.ultimo_powerup = ""
         self.tiempo_invencible = 0.0 # segundos invencible
 
+        # Identificar si es Snake y si es la version evolucionada
+        self.es_snake = self.tipo_juego in ('SNAKE', 'SNAKE_EVOLVED')
+        self.es_snake_evolved = (self.tipo_juego == 'SNAKE_EVOLVED' or bool(self.powerups) or 
+                                 'ON_EAT_POISON' in self.datos_juego.get('events', {}) or 
+                                 'CLOUD' in self.datos_juego.get('shapes', {}) or
+                                 bool(self.datos_juego.get('nivel')) or
+                                 bool(self.datos_juego.get('config', {}).get('nivel')))
+
         # --- Configuracion de la GUI ---
         self.root = tk.Tk()
         self.root.title("BrickScript - " + self.tipo_juego)
@@ -66,8 +74,11 @@ class Juego:
         
         # Nota: Se ha eliminado 'Q: Salir' de los controles en pantalla
         self.label_controles = tk.Label(self.marco_score, text="CONTROLES\nFlechas: Mover/Rotar", bg='#222222', fg='gray', font=('Consolas', 10))
-        if self.tipo_juego == 'SNAKE':
-            self.label_controles.config(text="CONTROLES Y REGLAS\nFlechas: Mover\nComida (+10 puntos): Azul\nVeneno (-10 puntos): Rojo\nNube (Perder todos los puntos): Gris\n Invencible (5 segundos): Fucsia")
+        if self.es_snake:
+            if self.es_snake_evolved:
+                self.label_controles.config(text="CONTROLES Y REGLAS\nFlechas: Mover\nComida (+10 puntos): Azul\nVeneno (-10 puntos): Rojo\nNube (Perder todos los puntos): Gris\n Invencible (5 segundos): Fucsia")
+            else:
+                self.label_controles.config(text="CONTROLES\nFlechas: Mover\nComida (+10 puntos): Azul")
         self.label_controles.pack(pady=20, padx=10)
 
         # Configurar eventos de teclado. Usamos <Key> para capturar cualquier tecla
@@ -78,20 +89,38 @@ class Juego:
             self.pieza_x, self.pieza_y, self.pieza_rotacion = 0, 0, 0
             self.velocidad_gravedad = 0.4
        
-        if self.tipo_juego == 'SNAKE':
+        if self.es_snake:
             self.serpiente_cuerpo = []
             self.serpiente_direccion = (1, 0)
             self.posicion_comida = None
             self.posicion_veneno = None
             self.posicion_nube = None
-            self.nivel = 'BABY'             # este es el nivel por defecto
-            self.velocidad_gravedad = 0.15  # velocidad por defecto
+            if self.es_snake_evolved:
+                nivel_cfg = self.datos_juego.get('nivel') or self.datos_juego.get('config', {}).get('nivel')
+                self.nivel = nivel_cfg if nivel_cfg in ('BABY', 'ENTUSIASTA', 'NYAN_CAT') else 'BABY'
+                velocidades = {'BABY': 0.15, 'ENTUSIASTA': 0.12, 'NYAN_CAT': 0.10}
+                self.velocidad_gravedad = velocidades.get(self.nivel, 0.15)
+            else:
+                self.nivel = None
+                self.velocidad_gravedad = 0.15
 
         self.timer_gravedad = 0
         self.timer_id = None
+
+        if self.tipo_juego == 'TANKS':
+            self.jugador_posicion = [self.ancho // 2, self.alto - 2]
+            self.tank_direccion = (0, -1)  # Inicialmente apuntando hacia arriba
+            self.tank_rotacion = 0          # 0: Arriba, 1: Derecha, 2: Abajo, 3: Izquierda
+            self.enemigos = []
+            self.balas_jugador = []
+            self.balas_enemigos = []
+            self.velocidad_gravedad = 0.3
+            self.tiempo_ultimo_disparo_enemigo = 0
+            self.tiempo_entre_disparos_enemigos = 1.5
+            
         
-        # --- NUEVO: Control del menú ---
-        self.en_menu = True if self.tipo_juego == 'SNAKE' else False
+        # --- Control del menú: Solo para Snake Evolved ---
+        self.en_menu = True if (self.es_snake and self.es_snake_evolved) else False
         if not self.en_menu:
             self.ejecutar_evento('ON_START')
 
@@ -110,7 +139,10 @@ class Juego:
         self.canvas.create_text(cx, cy - 10, text="1. BABY (Fácil)", fill="#00FF00", font=('Consolas', 12, 'bold'))
         self.canvas.create_text(cx, cy + 20, text="2. ENTUSIASTA (Medio)", fill="#FFFF00", font=('Consolas', 12, 'bold'))
         self.canvas.create_text(cx, cy + 50, text="3. NYAN CAT (Extremo)", fill="#FFB6C1", font=('Consolas', 12, 'bold'))
-        self.canvas.create_text(cx, cy + 100, text="Presiona 1, 2 o 3 para iniciar", fill="gray", font=('Consolas', 10))
+        texto_iniciar = "Presiona 1, 2 o 3 para iniciar"
+        if getattr(self, 'nivel', None):
+            texto_iniciar += "\n(Nivel predeterminado: " + str(self.nivel) + " - Presiona ESPACIO o ENTER)"
+        self.canvas.create_text(cx, cy + 100, text=texto_iniciar, fill="gray", font=('Consolas', 10), justify='center')
 
     def iniciar_juego_snake(self, nivel, velocidad):
         self.nivel = nivel
@@ -165,6 +197,9 @@ class Juego:
             if key == '1': self.iniciar_juego_snake('BABY', 0.15)
             elif key == '2': self.iniciar_juego_snake('ENTUSIASTA', 0.12)
             elif key == '3': self.iniciar_juego_snake('NYAN_CAT', 0.10)
+            elif key in ('SPACE', 'RETURN'):
+                vel = {'BABY': 0.15, 'ENTUSIASTA': 0.12, 'NYAN_CAT': 0.10}.get(self.nivel, 0.15)
+                self.iniciar_juego_snake(self.nivel, vel)
             return
         
         # Mapeo de teclas de flecha
@@ -173,12 +208,19 @@ class Juego:
             elif key == 'DOWN': self.ejecutar_evento('ON_KEY_DOWN')
             elif key == 'LEFT': self.ejecutar_evento('ON_KEY_LEFT')
             elif key == 'RIGHT': self.ejecutar_evento('ON_KEY_RIGHT')
-        elif self.tipo_juego == 'SNAKE':
+        elif self.es_snake:
             # Llamamos a las funciones internas para Snake
             if key == 'UP': self.snake_cambiar_direccion('UP')
             elif key == 'DOWN': self.snake_cambiar_direccion('DOWN')
             elif key == 'LEFT': self.snake_cambiar_direccion('LEFT')
             elif key == 'RIGHT': self.snake_cambiar_direccion('RIGHT')
+
+        elif self.tipo_juego == 'TANKS':
+            if key == 'UP': self.tank_cambiar_direccion('ON_KEY_UP')
+            elif key == 'DOWN': self.tank_cambiar_direccion('ON_KEY_DOWN')
+            elif key == 'LEFT': self.tank_cambiar_direccion('ON_KEY_LEFT')
+            elif key == 'RIGHT': self.tank_cambiar_direccion('ON_KEY_RIGHT')
+            elif key == 'SPACE': self.tank_cambiar_direccion('ON_KEY_SPACE')
 
 
     def dibujar(self):
@@ -230,20 +272,19 @@ class Juego:
                         self.dibujar_celda(self.pieza_x + x_offset, self.pieza_y + y_offset, color_actual)
         
     # 3. Dibujar Snake, comida y obstáculos
-        if self.tipo_juego == 'SNAKE':
+        if self.es_snake:
             if self.posicion_comida:
                 x, y = self.posicion_comida
                 self.dibujar_celda(x, y, COLOR_FOOD)
 
-            if self.posicion_veneno:
+            if self.es_snake_evolved and self.posicion_veneno:
                 x, y = self.posicion_veneno
                 self.dibujar_celda_circular(x, y, COLOR_POISON)
 
-            if self.posicion_nube:
+            if self.es_snake_evolved and self.posicion_nube:
                 x, y = self.posicion_nube
                 self.dibujar_celda_triangular(x, y, COLOR_CLOUD)
-            
-            # Leer el tipo de forma definido en el archivo brick (por defecto RECTANGLE)
+
             forma = self.datos_juego.get('shapes', {}).get('PIXEL', {}).get('tipo_forma', 'RECTANGLE')
 
             #Cuerpo de la serpiente
@@ -253,11 +294,11 @@ class Juego:
                 x, y = segmento
                 
                 # Color y efecto Nyan Cat
-                if self.nivel == 'NYAN_CAT':
+                if self.es_snake_evolved and self.nivel == 'NYAN_CAT':
                     color = '#FFB6C1' if i == 0 else colores_arcoiris[i % len(colores_arcoiris)]
                 else:
                     color = COLOR_SNAKE_CABEZA if i == 0 else COLOR_SNAKE_CUERPO
-                if self.nivel == 'NYAN_CAT' and i == 0:
+                if self.es_snake_evolved and self.nivel == 'NYAN_CAT' and i == 0:
                     self.dibujar_celda_gato(x, y, color) # Usamos la nueva cabeza con rasgos de gato
                 elif forma == 'CIRCLE':
                     self.dibujar_celda_circular(x, y, color)
@@ -265,6 +306,26 @@ class Juego:
                     self.dibujar_celda_triangular(x, y, color)
                 else:
                     self.dibujar_celda(x, y, color)
+
+    # 4. Dibujar el jugador (Tank)
+        if self.tipo_juego == 'TANKS':
+            if self.jugador_posicion:
+                shape_tank = self.datos_juego.get('shapes', {}).get('PLAYER_TANK', {})
+                estados = shape_tank.get('states', [
+                    [[0, 1, 0],
+                     [1, 1, 1],
+                     [1, 1, 1]]
+                ])
+                color_tank = shape_tank.get('color', '#025a06')
+                matriz_tanque = estados[self.tank_rotacion % len(estados)]
+
+                base_x, base_y = self.jugador_posicion
+                for y_offset, fila in enumerate(matriz_tanque):
+                    for x_offset, celda in enumerate(fila):
+                        if celda == 1:
+                            self.dibujar_celda(base_x + x_offset, base_y + y_offset, color_tank)
+
+            
 
 
     def dibujar_celda(self, x, y, color):
@@ -332,7 +393,6 @@ class Juego:
                     # Si la puntuación baja de 0, forzamos el Game Over
                     if self.puntuacion < 0:
                         self.juego_terminado = True
-                if verbo == 'FULL_SHRINK': self.puntuacion = 0
                 if verbo == 'GAME_OVER': self.juego_terminado = True
 
                 if self.tipo_juego == 'TETRIS':
@@ -340,7 +400,7 @@ class Juego:
                     if verbo == 'MOVE': self.tetris_mover_pieza(accion['params'][0])
                     if verbo == 'ROTATE': self.tetris_rotar_pieza()
                 
-                if self.tipo_juego == 'SNAKE':
+                if self.es_snake:
                     if verbo == 'SPAWN' and objeto == 'PLAYER': self.snake_spawn_jugador(accion)
                     if verbo == 'SPAWN' and objeto == 'FOOD': self.snake_spawn_comida()
                     if verbo == 'SPAWN' and objeto == 'POISON': self.snake_spawn_veneno()
@@ -348,8 +408,9 @@ class Juego:
                     if verbo == 'MOVE' and objeto == 'PLAYER': self.snake_mover_jugador()
                     if verbo == 'GROW': 
                         self.snake_crecer()
-                        self.stats['comida_devorada'] += 1
-                        self.verificar_condiciones_powerup(evento='EAT_FOOD')
+                        if self.es_snake_evolved:
+                            self.stats['comida_devorada'] += 1
+                            self.verificar_condiciones_powerup(evento='EAT_FOOD')
                     if verbo == 'SHRINK': self.snake_encoger(accion)
                     if verbo == 'FULL_SHRINK': 
                         if self.nivel == 'NYAN_CAT':
@@ -360,6 +421,9 @@ class Juego:
                         else:
                             self.puntuacion = 0
                         self.snake_encoger_todo(accion)
+                if self.tipo_juego == 'TANKS':
+                    if verbo == 'SPAWN' and objeto == 'PLAYER': self.tank_spawnear_jugador(accion)
+                   
 
     # METODOS DE LOGICA DE JUEGO (MANTENIDOS DEL ARCHIVO ORIGINAL)
     # ---------------------------------------------------------------------
@@ -546,6 +610,8 @@ class Juego:
             return
 
         alcanzables = list(self._celdas_alcanzables())
+        if self.tipo_juego in ('SNAKE', 'SNAKE_EVOLVED'):
+            alcanzables = [c for c in alcanzables if c not in getattr(self, 'serpiente_cuerpo', []) and c != getattr(self, 'posicion_comida', None) and c != getattr(self, 'posicion_veneno', None) and c != getattr(self, 'posicion_nube', None)]
         if not alcanzables:
             return   # tablero lleno o sin espacio util, no se spawnea nada
 
@@ -587,12 +653,12 @@ class Juego:
     def snake_spawn_comida(self):
         while True:
             x, y = random.randint(0, self.ancho - 1), random.randint(0, self.alto - 1)
-            if (x, y) not in self.serpiente_cuerpo:
+            if (x, y) not in self.serpiente_cuerpo and (x, y) != getattr(self, 'posicion_veneno', None) and (x, y) != getattr(self, 'posicion_nube', None):
                 self.posicion_comida = (x, y)
                 break
 
     def snake_spawn_veneno(self):
-        if self.nivel == 'BABY': return # En Baby no hay veneno
+        if not self.es_snake_evolved or self.nivel == 'BABY': return # En Baby no hay veneno
         while True:
             x, y = random.randint(0, self.ancho - 1), random.randint(0, self.alto - 1)
             if (x, y) not in self.serpiente_cuerpo and (x, y) != getattr(self, 'posicion_comida', None):
@@ -600,7 +666,7 @@ class Juego:
                 break
 
     def snake_spawn_cloud(self):
-        if self.nivel in ['BABY', 'ENTUSIASTA']: return # Solo en Nyan Cat
+        if not self.es_snake_evolved or self.nivel in ['BABY', 'ENTUSIASTA']: return # Solo en Nyan Cat
         while True:
             x, y = random.randint(0, self.ancho - 1), random.randint(0, self.alto - 1)
             if (x, y) not in self.serpiente_cuerpo and (x, y) != getattr(self, 'posicion_comida', None) and (x, y) != getattr(self, 'posicion_veneno', None):
@@ -613,24 +679,25 @@ class Juego:
         dir_x, dir_y = self.serpiente_direccion
         nueva_cabeza = (cabeza_x + dir_x, cabeza_y + dir_y)
 
-        # 1. Choque con pared (con Invencibilidad tipo Pac-Man)
+        # 1. Choque con pared (con Invencibilidad tipo Pac-Man en Evolved)
         if not (0 <= nueva_cabeza[0] < self.ancho and 0 <= nueva_cabeza[1] < self.alto):
-            if getattr(self, 'tiempo_invencible', 0) > 0:
+            if self.es_snake_evolved and getattr(self, 'tiempo_invencible', 0) > 0:
                 # Efecto Pac-Man: Atraviesa la pared y sale por el otro lado
                 nueva_cabeza = (nueva_cabeza[0] % self.ancho, nueva_cabeza[1] % self.alto)
             else:
                 self.ejecutar_evento('ON_COLLISION_WALL')
                 return
             
-        # 2. Recoger Power-Ups de la cuadrícula
-        celda = self.grid[nueva_cabeza[1]][nueva_cabeza[0]]
-        if isinstance(celda, str) and celda in self.powerups:
-            self.aplicar_efecto_powerup(celda, nueva_cabeza[0], nueva_cabeza[1])
-            self.grid[nueva_cabeza[1]][nueva_cabeza[0]] = 0 # Borrar power-up del mapa
+        # 2. Recoger Power-Ups de la cuadrícula (solo en Evolved)
+        if self.es_snake_evolved:
+            celda = self.grid[nueva_cabeza[1]][nueva_cabeza[0]]
+            if isinstance(celda, str) and celda in self.powerups:
+                self.aplicar_efecto_powerup(celda, nueva_cabeza[0], nueva_cabeza[1])
+                self.grid[nueva_cabeza[1]][nueva_cabeza[0]] = 0 # Borrar power-up del mapa
             
-        # 3. Choque con su propio cuerpo (inmune si hay invencibilidad)
+        # 3. Choque con su propio cuerpo (inmune si hay invencibilidad en Evolved)
         if nueva_cabeza in self.serpiente_cuerpo[:-1]:
-            if getattr(self, 'tiempo_invencible', 0) <= 0:
+            if not (self.es_snake_evolved and getattr(self, 'tiempo_invencible', 0) > 0):
                 self.ejecutar_evento('ON_COLLISION_SELF')
                 return
 
@@ -640,13 +707,13 @@ class Juego:
         if nueva_cabeza == getattr(self, 'posicion_comida', None):
             self.ejecutar_evento('ON_EAT_FOOD')
             
-        elif nueva_cabeza == getattr(self, 'posicion_veneno', None):
+        elif self.es_snake_evolved and nueva_cabeza == getattr(self, 'posicion_veneno', None):
             if getattr(self, 'tiempo_invencible', 0) > 0:
                 self.serpiente_cuerpo.pop() # Eres invencible: Ignoras el veneno (pasas de largo)
             else:
                 self.ejecutar_evento('ON_EAT_POISON')
                 
-        elif nueva_cabeza == getattr(self, 'posicion_nube', None):
+        elif self.es_snake_evolved and nueva_cabeza == getattr(self, 'posicion_nube', None):
             if getattr(self, 'tiempo_invencible', 0) > 0:
                 self.serpiente_cuerpo.pop() # Eres invencible: Ignoras la nube (pasas de largo)
             else:
@@ -682,7 +749,39 @@ class Juego:
         # Eliminamos todo el cuerpo excepto la cabeza
         while len(self.serpiente_cuerpo) > 1:
             self.serpiente_cuerpo.pop()
-        
+    # ------------------- LOGICA DE TANKS -------------------
+    def tank_cambiar_direccion(self, direccion):
+        if direccion == 'ON_KEY_UP':
+            self.tank_rotacion = 0
+            self.tank_direccion = (0, -1)
+            self.jugador_posicion[1] -= 1
+        elif direccion == 'ON_KEY_DOWN':
+            self.tank_rotacion = 2
+            self.tank_direccion = (0, 1)
+            self.jugador_posicion[1] += 1
+        elif direccion == 'ON_KEY_LEFT':
+            self.tank_rotacion = 3
+            self.tank_direccion = (-1, 0)
+            self.jugador_posicion[0] -= 1
+        elif direccion == 'ON_KEY_RIGHT':
+            self.tank_rotacion = 1
+            self.tank_direccion = (1, 0)
+            self.jugador_posicion[0] += 1
+
+        # Evitar que la matriz 3x3 se salga del canvas
+        self.jugador_posicion[0] = max(0, min(self.ancho - 3, self.jugador_posicion[0]))
+        self.jugador_posicion[1] = max(0, min(self.alto - 3, self.jugador_posicion[1]))
+
+    def tank_spawnear_jugador(self, accion):
+        coords = accion['params'][0] if accion['params'] else [self.ancho // 2, self.alto // 2]
+        self.jugador_posicion = [coords[0], coords[1]]
+
+        # Limitar al área de juego considerando el tamaño 3x3
+        self.jugador_posicion[0] = max(0, min(self.ancho - 3, self.jugador_posicion[0]))
+        self.jugador_posicion[1] = max(0, min(self.alto - 3, self.jugador_posicion[1]))
+
+
+
 
 
     # METODOS DE SALIDA (ADAPTADOS A GUI)

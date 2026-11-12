@@ -4,63 +4,28 @@
     "grid_size": [
       18,
       18
-    ]
+    ],
+    "colores_piezas": {}
   },
   "shapes": {
     "PIXEL": {
+      "tipo_forma": "RECTANGLE",
       "CHANCE": 1,
+      "SPEED": 1,
+      "HEAL": 1,
+      "DAMAGE": 1,
+      "HEALTH": 1,
+      "COLOR": "#FFFFFF",
       "states": [
         [
           [
             1
           ]
         ]
-      ],
-      "tipo_forma": "CIRCLE"
-    },
-    "POISON_PIXEL": {
-      "CHANCE": 1,
-      "states": [
-        [
-          [
-            1
-          ]
-        ]
-      ],
-      "tipo_forma": "CIRCLE"
-    },
-    "CLOUD": {
-      "CHANCE": 1,
-      "states": [
-        [
-          [
-            1
-          ]
-        ]
-      ],
-      "tipo_forma": "TRIANGLE"
-    }
-  },
-  "powerups": {
-    "INVINCIBILITY": {
-      "nombre": "INVINCIBILITY",
-      "estados": [
-        [
-          [
-            1
-          ]
-        ]
-      ],
-      "efecto": "INVINCIBLE",
-      "color": "#ff00bf",
-      "condiciones": [
-        {
-          "tipo": "FOOD_EATEN",
-          "valor": 5
-        }
       ]
     }
   },
+  "powerups": {},
   "events": {
     "ON_START": [
       {
@@ -76,20 +41,6 @@
       {
         "accion": "SPAWN",
         "objeto": "FOOD",
-        "params": [
-          "RANDOM"
-        ]
-      },
-      {
-        "accion": "SPAWN",
-        "objeto": "POISON",
-        "params": [
-          "RANDOM"
-        ]
-      },
-      {
-        "accion": "SPAWN",
-        "objeto": "CLOUD",
         "params": [
           "RANDOM"
         ]
@@ -166,49 +117,6 @@
         "objeto": "RIGHT",
         "params": []
       }
-    ],
-    "ON_EAT_POISON": [
-      {
-        "accion": "DECREASE_SCORE",
-        "objeto": "10",
-        "params": [
-          "SHRINK"
-        ]
-      },
-      {
-        "accion": "PLAYER",
-        "objeto": "1",
-        "params": []
-      },
-      {
-        "accion": "SPAWN",
-        "objeto": "POISON",
-        "params": [
-          "RANDOM"
-        ]
-      }
-    ],
-    "ON_CLOUD_COLLISION": [
-      {
-        "accion": "DECREASE_SCORE",
-        "objeto": "10",
-        "params": [
-          "FULL_SHRINK"
-        ]
-      },
-      {
-        "accion": "PLAYER",
-        "objeto": "1",
-        "params": []
-      },
-      {
-        "accion": "SPAWN",
-        "objeto": "CLOUD",
-        "params": [
-          "RANDOM"
-        ]
-      }
     ]
-  },
-  "nivel": "BABY"
+  }
 }

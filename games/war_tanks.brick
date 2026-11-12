@@ -1,0 +1,140 @@
+GAME_TYPE TANKS
+
+GAME_GRID (46,45)
+
+#Lógica
+ON START:
+  SPAWN PLAYER AT (40,20)
+  SPAWN ENEMY_TANK_GENERIC AT RANDOM
+END
+
+
+#Definicion de elementos
+
+DEFINE SHAPE PLAYER_TANK:
+    STATE 1:
+        [0,1,0]
+        [1,1,1]
+        [1,1,1]
+    STATE 2:
+        [1,1,0]
+        [1,1,1]
+        [1,1,0]
+    STATE 3:
+        [1,1,1]
+        [1,1,1]
+        [0,1,0]
+    STATE 4:
+        [0,1,1]
+        [1,1,1]
+        [0,1,1]
+    COLOR #025a06
+    HEALTH 100
+    DAMAGE 25
+    SPEED 20
+END
+
+DEFINE SHAPE HAMMER:
+    STATE 1:
+        [1,1,1]
+        [0,1,0]
+        [0,1,0]
+    COLOR #000000
+END
+
+DEFINE SHAPE ENEMY_TANK_GENERIC:
+    STATE 1:
+        [0,1,0]
+        [1,1,1]
+        [1,1,1]
+    STATE 2:
+        [1,1,0]
+        [1,1,1]
+        [1,1,0]
+    STATE 3:
+        [1,1,1]
+        [1,1,1]
+        [0,1,0]
+    STATE 4:
+        [0,1,1]
+        [1,1,1]
+        [0,1,1]
+    COLOR #ff0000
+    HEALTH 100
+    DAMAGE 20
+    SPEED 20
+END
+
+DEFINE SHAPE ENEMY_TANK_STRONG:
+STATE 1:
+        [0,1,0]
+        [1,1,1]
+        [1,1,1]
+    STATE 2:
+        [1,1,0]
+        [1,1,1]
+        [1,1,0]
+    STATE 3:
+        [1,1,1]
+        [1,1,1]
+        [0,1,0]
+    STATE 4:
+        [0,1,1]
+        [1,1,1]
+        [0,1,1]
+    COLOR #ffe600
+    HEALTH 200
+    DAMAGE 19
+    SPEED 20
+END
+
+DEFINE SHAPE ENEMY_TANK_FAST:
+    STATE 1:
+        [0,1,0]
+        [1,1,1]
+        [1,1,1]
+    STATE 2:
+        [1,1,0]
+        [1,1,1]
+        [1,1,0]
+    STATE 3:
+        [1,1,1]
+        [1,1,1]
+        [0,1,0]
+    STATE 4:
+        [0,1,1]
+        [1,1,1]
+        [0,1,1]
+    COLOR #0cceff
+    HEALTH 100
+    DAMAGE 10
+    SPEED 40
+END
+
+ON GRAB_HAMMER:
+    HEAL 25
+END
+
+# Eventos de fin de juego
+ON ZERO_HEALTH:
+  GAME_OVER
+END
+
+
+# --- Controles ---
+ON KEY_UP:
+  SET_DIRECTION UP
+  MOVE PLAYER UP
+END
+ON KEY_DOWN:
+  SET_DIRECTION DOWN
+  MOVE PLAYER DOWN
+END
+ON KEY_LEFT:
+  SET_DIRECTION LEFT
+  MOVE PLAYER LEFT
+END
+ON KEY_RIGHT:
+  SET_DIRECTION RIGHT
+  MOVE PLAYER RIGHT
+END

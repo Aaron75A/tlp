@@ -2,18 +2,35 @@
   "tipo_juego": "TANKS",
   "config": {
     "grid_size": [
-      46,
-      45
+      40,
+      25
     ],
     "colores_piezas": {
+      "WALL": "#B85D19",
       "PLAYER_TANK": "#025a06",
-      "HAMMER": "#000000",
+      "HAMMER": "#ffffff",
       "ENEMY_TANK_GENERIC": "#ff0000",
       "ENEMY_TANK_STRONG": "#ffe600",
       "ENEMY_TANK_FAST": "#0cceff"
     }
   },
   "shapes": {
+    "WALL": {
+      "tipo_forma": "RECTANGLE",
+      "CHANCE": 1,
+      "SPEED": 1,
+      "HEAL": 1,
+      "DAMAGE": 1,
+      "HEALTH": 50,
+      "COLOR": "#B85D19",
+      "states": [
+        [
+          [
+            1
+          ]
+        ]
+      ]
+    },
     "PLAYER_TANK": {
       "tipo_forma": "RECTANGLE",
       "CHANCE": 1,
@@ -100,7 +117,7 @@
       "HEAL": 1,
       "DAMAGE": 1,
       "HEALTH": 1,
-      "COLOR": "#000000",
+      "COLOR": "#ffffff",
       "states": [
         [
           [
@@ -203,9 +220,9 @@
     "ENEMY_TANK_STRONG": {
       "tipo_forma": "RECTANGLE",
       "CHANCE": 1,
-      "SPEED": 20,
+      "SPEED": 10,
       "HEAL": 1,
-      "DAMAGE": 19,
+      "DAMAGE": 40,
       "HEALTH": 200,
       "COLOR": "#ffe600",
       "states": [
@@ -284,7 +301,7 @@
       "CHANCE": 1,
       "SPEED": 40,
       "HEAL": 1,
-      "DAMAGE": 10,
+      "DAMAGE": 15,
       "HEALTH": 100,
       "COLOR": "#0cceff",
       "states": [
@@ -364,20 +381,48 @@
     "ON_START": [
       {
         "accion": "SPAWN",
-        "objeto": "PLAYER",
+        "objeto": "ENEMY_TANK_GENERIC",
         "params": [
           [
-            40,
-            20
+            0,
+            0
           ]
         ]
       },
       {
         "accion": "SPAWN",
-        "objeto": "ENEMY_TANK_GENERIC",
+        "objeto": "ENEMY_TANK_STRONG",
         "params": [
-          "RANDOM"
+          [
+            37,
+            0
+          ]
         ]
+      },
+      {
+        "accion": "SPAWN",
+        "objeto": "ENEMY_TANK_FAST",
+        "params": [
+          [
+            0,
+            22
+          ]
+        ]
+      },
+      {
+        "accion": "SPAWN",
+        "objeto": "PLAYER",
+        "params": [
+          [
+            37,
+            22
+          ]
+        ]
+      },
+      {
+        "accion": "SPAWN",
+        "objeto": "WALL",
+        "params": []
       }
     ],
     "ON_GRAB_HAMMER": [

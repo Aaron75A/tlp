@@ -74,6 +74,8 @@ class Juego:
         
         # Nota: Se ha eliminado 'Q: Salir' de los controles en pantalla
         self.label_controles = tk.Label(self.marco_score, text="CONTROLES\nFlechas: Mover/Rotar", bg='#222222', fg='gray', font=('Consolas', 10))
+        if self.tipo_juego == 'TANKS':
+            self.label_controles.config(text="CONTROLES\nFlechas: Mover/Rotar\nEspacio: Disparar")
         if self.es_snake:
             if self.es_snake_evolved:
                 self.label_controles.config(text="CONTROLES Y REGLAS\nFlechas: Mover\nComida (+10 puntos): Azul\nVeneno (-10 puntos): Rojo\nNube (Perder todos los puntos): Gris\n Invencible (5 segundos): Fucsia")
@@ -108,21 +110,39 @@ class Juego:
         self.timer_id = None
 
         if self.tipo_juego == 'TANKS':
-            self.jugador_posicion = [self.ancho // 2, self.alto - 2]
+            shape_tank = self.datos_juego.get('shapes', {}).get('PLAYER_TANK', {})
+            self.jugador_posicion = [self.ancho - 3, self.alto - 3]
+            self.jugador_spawn_pos = [self.ancho - 3, self.alto - 3]
             self.tank_direccion = (0, -1)  # Inicialmente apuntando hacia arriba
             self.tank_rotacion = 0          # 0: Arriba, 1: Derecha, 2: Abajo, 3: Izquierda
+            self.jugador_vidas = 3
+            self.jugador_salud_max = shape_tank.get('HEALTH', 100)
+            self.jugador_salud = self.jugador_salud_max
+            self.tiempo_invencible_jugador = 0
+            self.balas_max_jugador = 5
+            self.balas_restantes_jugador = 5
+            self.cooldown_recarga_jugador = 0.0
+            self.martillo_activo = False
+            self.posicion_martillo = None
+            self.intervalo_spawn_martillo = 15.0
+            self.timer_spawn_martillo = 15.0
+            self.timer_vida_martillo = 0.0
+            self.duracion_vida_martillo = 12.0
             self.enemigos = []
             self.balas_jugador = []
             self.balas_enemigos = []
+            self.muros = []
+            self.muros_posiciones = {}
             self.velocidad_gravedad = 0.3
-            self.tiempo_ultimo_disparo_enemigo = 0
-            self.tiempo_entre_disparos_enemigos = 1.5
+            self.tiempo_ultimo_disparo_jugador = 0
             
         
         # --- Control del menú: Solo para Snake Evolved ---
         self.en_menu = True if (self.es_snake and self.es_snake_evolved) else False
         if not self.en_menu:
             self.ejecutar_evento('ON_START')
+            if self.tipo_juego == 'TANKS' and len(self.muros) == 0 and 'WALL' in self.datos_juego.get('shapes', {}):
+                self.tank_generar_mapa_muros()
 
     def run(self):
         if self.en_menu:
@@ -172,7 +192,12 @@ class Juego:
             self.tiempo_invencible -= 0.05
             self.label_powerup.config(text="INVENCIBLE: %.1fs" % self.tiempo_invencible)
 
-        if self.timer_gravedad >= velocidad_efectiva:
+        if self.tipo_juego == 'TANKS':
+            self.tank_actualizar()
+            if self.timer_gravedad >= velocidad_efectiva:
+                self.timer_gravedad = 0
+                self.ejecutar_evento('ON_TICK')
+        elif self.timer_gravedad >= velocidad_efectiva:
             self.timer_gravedad = 0
             self.ejecutar_evento('ON_TICK')
 
@@ -220,7 +245,7 @@ class Juego:
             elif key == 'DOWN': self.tank_cambiar_direccion('ON_KEY_DOWN')
             elif key == 'LEFT': self.tank_cambiar_direccion('ON_KEY_LEFT')
             elif key == 'RIGHT': self.tank_cambiar_direccion('ON_KEY_RIGHT')
-            elif key == 'SPACE': self.tank_cambiar_direccion('ON_KEY_SPACE')
+            elif key == 'SPACE': self.tank_disparar(es_jugador=True)
 
 
     def dibujar(self):
@@ -232,7 +257,28 @@ class Juego:
         self.label_score.config(text="PUNTUACION\n" + str(self.puntuacion))
 
         # --- NUEVO: actualizar la etiqueta del power-up ---
-        if self.tiempo_slow > 0:
+        if self.tipo_juego == 'TANKS':
+            lineas = [
+                "VIDAS: %s" % ("❤️ " * max(0, getattr(self, 'jugador_vidas', 1))),
+                "HP: %d" % self.jugador_salud
+            ]
+            if getattr(self, 'cooldown_recarga_jugador', 0.0) > 0.0:
+                lineas.append("COOLDOWN: %.1fs" % self.cooldown_recarga_jugador)
+                self.label_powerup.config(fg='#FF4444')
+            else:
+                lineas.append("BALAS: %d/5" % getattr(self, 'balas_restantes_jugador', 5))
+                self.label_powerup.config(fg='#FFD700')
+            if getattr(self, 'martillo_activo', False):
+                lineas.append("🔨 CURA: ACTIVO")
+            else:
+                lineas.append("🔨 CURA: %.0fs" % max(0, getattr(self, 'timer_spawn_martillo', 15.0)))
+            lineas.append("---")
+            for e in self.enemigos:
+                nombre = e['tipo'].replace('ENEMY_TANK_', '')
+                estado = ("%d HP" % e['salud']) if e.get('vivo', True) else "REVIVE"
+                lineas.append("%s: %s" % (nombre, estado))
+            self.label_powerup.config(text="\n".join(lineas))
+        elif self.tiempo_slow > 0:
             self.label_powerup.config(text="SLOW: %.1fs" % self.tiempo_slow)
         elif self.tiempo_invencible > 0:
             self.label_powerup.config(text="INVENCIBLE: %.1fs" % self.tiempo_invencible)
@@ -307,8 +353,23 @@ class Juego:
                 else:
                     self.dibujar_celda(x, y, color)
 
-    # 4. Dibujar el jugador (Tank)
+    # 4. Dibujar el jugador y enemigos (Tank)
         if self.tipo_juego == 'TANKS':
+            # Dibujar muros destructibles
+            shape_wall = self.datos_juego.get('shapes', {}).get('WALL', {})
+            color_base = shape_wall.get('COLOR') or shape_wall.get('color') or '#B85D19'
+            for muro in getattr(self, 'muros', []):
+                salud = muro['salud']
+                salud_max = muro.get('salud_max', 50)
+                pct = salud / salud_max if salud_max > 0 else 1.0
+                if pct > 0.6:
+                    c_muro = color_base
+                elif pct > 0.3:
+                    c_muro = '#8B3E1B'
+                else:
+                    c_muro = '#5A210A'
+                self.dibujar_celda_muro(muro['x'], muro['y'], c_muro, pct)
+
             if self.jugador_posicion:
                 shape_tank = self.datos_juego.get('shapes', {}).get('PLAYER_TANK', {})
                 estados = shape_tank.get('states', [
@@ -325,7 +386,49 @@ class Juego:
                         if celda == 1:
                             self.dibujar_celda(base_x + x_offset, base_y + y_offset, color_tank)
 
-            
+            # Dibujar todos los tanques enemigos
+            for enemigo in self.enemigos:
+                if not enemigo.get('vivo', True):
+                    continue
+                tipo = enemigo['tipo']
+                shape_enemy = self.datos_juego.get('shapes', {}).get(tipo, {})
+                estados_enemy = shape_enemy.get('states', [
+                    [[0, 1, 0],
+                     [1, 1, 1],
+                     [1, 1, 1]]
+                ])
+                color_enemy = enemigo.get('color', shape_enemy.get('COLOR', '#FF0000'))
+                rot = enemigo.get('rotacion', 2)
+                matriz_enemy = estados_enemy[rot % len(estados_enemy)]
+
+                base_x, base_y = enemigo['posicion']
+                for y_offset, fila in enumerate(matriz_enemy):
+                    for x_offset, celda in enumerate(fila):
+                        if celda == 1:
+                            self.dibujar_celda(base_x + x_offset, base_y + y_offset, color_enemy)
+
+            # Dibujar balas del jugador y enemigos
+            for bala in self.balas_jugador:
+                self.dibujar_celda_circular(bala['x'], bala['y'], bala.get('color', '#00FF00'))
+
+            for bala in self.balas_enemigos:
+                self.dibujar_celda_circular(bala['x'], bala['y'], bala.get('color', '#FF4444'))
+
+            # Dibujar martillo de curación si está activo
+            if getattr(self, 'martillo_activo', False) and getattr(self, 'posicion_martillo', None):
+                shape_hammer = self.datos_juego.get('shapes', {}).get('HAMMER', {})
+                estados_hammer = shape_hammer.get('states', [
+                    [[1, 1, 1],
+                     [0, 1, 0],
+                     [0, 1, 0]]
+                ])
+                color_hammer = shape_hammer.get('COLOR') or shape_hammer.get('color') or '#ffffff'
+                matriz_hammer = estados_hammer[0]
+                hx, hy = self.posicion_martillo
+                for y_offset, fila in enumerate(matriz_hammer):
+                    for x_offset, celda in enumerate(fila):
+                        if celda == 1:
+                            self.dibujar_celda(hx + x_offset, hy + y_offset, color_hammer)
 
 
     def dibujar_celda(self, x, y, color):
@@ -381,6 +484,24 @@ class Juego:
         m = 3
         self.canvas.create_oval(x1 + m, y1 + m, x2 - m, y2 - m, fill=color, outline='#FFFFFF', width=2)
 
+    def dibujar_celda_muro(self, x, y, color, pct_salud):
+        ts = self.taman_celda
+        x1, y1 = x * ts, y * ts
+        x2, y2 = x1 + ts, y1 + ts
+        # Fondo del ladrillo
+        self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline='#200c02')
+        # Textura de ladrillos con líneas de mortero
+        mid_y = y1 + ts // 2
+        self.canvas.create_line(x1, mid_y, x2, mid_y, fill='#3b1604', width=1)
+        self.canvas.create_line(x1 + ts // 2, y1, x1 + ts // 2, mid_y, fill='#3b1604', width=1)
+        self.canvas.create_line(x1 + ts // 4, mid_y, x1 + ts // 4, y2, fill='#3b1604', width=1)
+        self.canvas.create_line(x1 + 3 * ts // 4, mid_y, x1 + 3 * ts // 4, y2, fill='#3b1604', width=1)
+        # Grietas si el ladrillo ha recibido disparos
+        if pct_salud <= 0.65:
+            self.canvas.create_line(x1 + 4, y1 + 3, x1 + 11, y1 + 13, fill='#111111', width=1)
+        if pct_salud <= 0.35:
+            self.canvas.create_line(x1 + 14, y1 + 4, x1 + 8, y1 + 16, fill='#111111', width=2)
+
 
     def ejecutar_evento(self, nombre_evento):
         if nombre_evento in self.datos_juego['events']:
@@ -394,6 +515,10 @@ class Juego:
                     if self.puntuacion < 0:
                         self.juego_terminado = True
                 if verbo == 'GAME_OVER': self.juego_terminado = True
+                if verbo == 'HEAL':
+                    curacion = int(objeto) if objeto else 25
+                    salud_max = getattr(self, 'jugador_salud_max', 100)
+                    self.jugador_salud = min(salud_max, self.jugador_salud + curacion)
 
                 if self.tipo_juego == 'TETRIS':
                     if verbo == 'SPAWN': self.tetris_spawn_pieza()
@@ -422,8 +547,14 @@ class Juego:
                             self.puntuacion = 0
                         self.snake_encoger_todo(accion)
                 if self.tipo_juego == 'TANKS':
-                    if verbo == 'SPAWN' and objeto == 'PLAYER': self.tank_spawnear_jugador(accion)
-                   
+                    if verbo == 'SPAWN' and objeto == 'PLAYER':
+                        self.tank_spawnear_jugador(accion)
+                    elif verbo == 'SPAWN' and objeto == 'HAMMER':
+                        self.tank_spawnear_martillo(accion)
+                    elif verbo == 'SPAWN' and objeto == 'WALL':
+                        self.tank_spawnear_muro(accion)
+                    elif verbo == 'SPAWN' and objeto:
+                        self.tank_spawnear_enemigo(objeto, accion)
 
     # METODOS DE LOGICA DE JUEGO (MANTENIDOS DEL ARCHIVO ORIGINAL)
     # ---------------------------------------------------------------------
@@ -751,35 +882,707 @@ class Juego:
             self.serpiente_cuerpo.pop()
     # ------------------- LOGICA DE TANKS -------------------
     def tank_cambiar_direccion(self, direccion):
+        if not self.jugador_posicion or self.juego_terminado:
+            return
+
+        nueva_pos = list(self.jugador_posicion)
+
         if direccion == 'ON_KEY_UP':
             self.tank_rotacion = 0
             self.tank_direccion = (0, -1)
-            self.jugador_posicion[1] -= 1
+            nueva_pos[1] -= 1
         elif direccion == 'ON_KEY_DOWN':
             self.tank_rotacion = 2
             self.tank_direccion = (0, 1)
-            self.jugador_posicion[1] += 1
+            nueva_pos[1] += 1
         elif direccion == 'ON_KEY_LEFT':
             self.tank_rotacion = 3
             self.tank_direccion = (-1, 0)
-            self.jugador_posicion[0] -= 1
+            nueva_pos[0] -= 1
         elif direccion == 'ON_KEY_RIGHT':
             self.tank_rotacion = 1
             self.tank_direccion = (1, 0)
-            self.jugador_posicion[0] += 1
+            nueva_pos[0] += 1
+        elif direccion == 'ON_KEY_SPACE':
+            self.tank_disparar(es_jugador=True)
+            return
 
         # Evitar que la matriz 3x3 se salga del canvas
-        self.jugador_posicion[0] = max(0, min(self.ancho - 3, self.jugador_posicion[0]))
-        self.jugador_posicion[1] = max(0, min(self.alto - 3, self.jugador_posicion[1]))
+        nueva_pos[0] = max(0, min(self.ancho - 3, nueva_pos[0]))
+        nueva_pos[1] = max(0, min(self.alto - 3, nueva_pos[1]))
+
+        # Comprobar colisión con tanques enemigos vivos (no atravesar otros tanques)
+        nx, ny = nueva_pos
+        colision = False
+        for enemigo in self.enemigos:
+            if enemigo.get('vivo', True):
+                ex, ey = enemigo['posicion']
+                if abs(nx - ex) < 3 and abs(ny - ey) < 3:
+                    colision = True
+                    break
+
+        # Comprobar colisión con muros
+        if not colision and hasattr(self, 'muros_posiciones'):
+            for ox in range(3):
+                for oy in range(3):
+                    if (nx + ox, ny + oy) in self.muros_posiciones:
+                        colision = True
+                        break
+                if colision:
+                    break
+
+        if not colision:
+            self.jugador_posicion = nueva_pos
+            self.tank_verificar_recogida_martillo()
+
+    @property
+    def generic_enemy_posicion(self):
+        for e in self.enemigos:
+            if e['tipo'] == 'ENEMY_TANK_GENERIC':
+                return e['posicion']
+        if self.enemigos:
+            return self.enemigos[0]['posicion']
+        return [0, 0]
+
+    @generic_enemy_posicion.setter
+    def generic_enemy_posicion(self, pos):
+        for e in self.enemigos:
+            if e['tipo'] == 'ENEMY_TANK_GENERIC':
+                e['posicion'] = pos
+                return
+        if self.enemigos:
+            self.enemigos[0]['posicion'] = pos
+
+    @property
+    def enemy_tank_rotacion(self):
+        for e in self.enemigos:
+            if e['tipo'] == 'ENEMY_TANK_GENERIC':
+                return e['rotacion']
+        return 2
+
+    @enemy_tank_rotacion.setter
+    def enemy_tank_rotacion(self, rot):
+        for e in self.enemigos:
+            if e['tipo'] == 'ENEMY_TANK_GENERIC':
+                e['rotacion'] = rot
+                return
+
+    @property
+    def enemy_tank_direccion(self):
+        for e in self.enemigos:
+            if e['tipo'] == 'ENEMY_TANK_GENERIC':
+                return e['direccion']
+        return (0, 1)
+
+    @enemy_tank_direccion.setter
+    def enemy_tank_direccion(self, d):
+        for e in self.enemigos:
+            if e['tipo'] == 'ENEMY_TANK_GENERIC':
+                e['direccion'] = d
+                return
+
+    @property
+    def enemy_vivo(self):
+        for e in self.enemigos:
+            if e['tipo'] == 'ENEMY_TANK_GENERIC':
+                return e['vivo']
+        return any(e['vivo'] for e in self.enemigos) if self.enemigos else True
+
+    @enemy_vivo.setter
+    def enemy_vivo(self, v):
+        for e in self.enemigos:
+            if e['tipo'] == 'ENEMY_TANK_GENERIC':
+                e['vivo'] = v
+                return
+
+    @property
+    def enemy_salud(self):
+        for e in self.enemigos:
+            if e['tipo'] == 'ENEMY_TANK_GENERIC':
+                return e['salud']
+        return 100
+
+    @enemy_salud.setter
+    def enemy_salud(self, s):
+        for e in self.enemigos:
+            if e['tipo'] == 'ENEMY_TANK_GENERIC':
+                e['salud'] = s
+                return
+
+    def tank_disparar(self, es_jugador=True, enemigo=None):
+        if es_jugador:
+            if not self.jugador_posicion or self.juego_terminado:
+                return
+            # Si está en cooldown de recarga de 4 segundos
+            if getattr(self, 'cooldown_recarga_jugador', 0.0) > 0.0:
+                return
+            # Si no le quedan balas
+            if getattr(self, 'balas_restantes_jugador', 0) <= 0:
+                self.cooldown_recarga_jugador = 4.0
+                return
+            ahora = time.time()
+            if ahora - getattr(self, 'tiempo_ultimo_disparo_jugador', 0) < 0.15:
+                return
+            self.tiempo_ultimo_disparo_jugador = ahora
+
+            base_x, base_y = self.jugador_posicion
+            dx, dy = self.tank_direccion
+            shape_tank = self.datos_juego.get('shapes', {}).get('PLAYER_TANK', {})
+            damage = shape_tank.get('DAMAGE', 25)
+
+            bx = base_x + 1 + dx
+            by = base_y + 1 + dy
+            self.balas_jugador.append({
+                'x': bx,
+                'y': by,
+                'dx': dx,
+                'dy': dy,
+                'damage': damage,
+                'color': '#00FF00'
+            })
+
+            # Reducir balas disponibles (máximo 5)
+            self.balas_restantes_jugador -= 1
+            if self.balas_restantes_jugador <= 0:
+                self.cooldown_recarga_jugador = 4.0 # Inicia cooldown de 4 segundos
+        else:
+            if self.juego_terminado:
+                return
+            if enemigo is None:
+                for e in self.enemigos:
+                    if e.get('vivo', True):
+                        enemigo = e
+                        break
+            if not enemigo or not enemigo.get('vivo', True):
+                return
+
+            base_x, base_y = enemigo['posicion']
+            dx, dy = enemigo['direccion']
+            damage = enemigo.get('damage', 20)
+            color_bala = enemigo.get('color', '#FF4444')
+
+            bx = base_x + 1 + dx
+            by = base_y + 1 + dy
+            self.balas_enemigos.append({
+                'x': bx,
+                'y': by,
+                'dx': dx,
+                'dy': dy,
+                'damage': damage,
+                'color': color_bala,
+                'tipo_enemigo': enemigo['tipo'],
+                'tirador': enemigo
+            })
+
+    def tank_mover_y_disparar_enemigo(self):
+        if not self.jugador_posicion:
+            return
+
+        px, py = self.jugador_posicion
+
+        for enemigo in self.enemigos:
+            if not enemigo.get('vivo', True):
+                if enemigo.get('tiempo_respawn', 0) > 0:
+                    enemigo['tiempo_respawn'] -= 0.05
+                    if enemigo['tiempo_respawn'] <= 0:
+                        sp_x, sp_y = enemigo['spawn_pos']
+                        bloqueado = False
+                        if abs(sp_x - px) < 3 and abs(sp_y - py) < 3:
+                            bloqueado = True
+                        for otro in self.enemigos:
+                            if otro is not enemigo and otro.get('vivo', True):
+                                ox, oy = otro['posicion']
+                                if abs(sp_x - ox) < 3 and abs(sp_y - oy) < 3:
+                                    bloqueado = True
+                                    break
+                        if bloqueado:
+                            enemigo['tiempo_respawn'] = 1.0
+                            continue
+
+                        enemigo['posicion'] = list(enemigo['spawn_pos'])
+                        enemigo['rotacion'] = 2
+                        enemigo['direccion'] = (0, 1)
+                        enemigo['vivo'] = True
+                        enemigo['salud'] = enemigo['salud_max']
+                continue
+
+            ex, ey = enemigo['posicion']
+
+            # Movimiento acorde a su velocidad (SPEED)
+            enemigo['timer_movimiento'] += 0.05
+            # SPEED 20 -> 0.30s, SPEED 40 -> 0.15s
+            intervalo = max(0.10, 6.0 / max(1, enemigo.get('speed', 20)))
+            if enemigo['timer_movimiento'] >= intervalo:
+                enemigo['timer_movimiento'] = 0
+                dx = px - ex
+                dy = py - ey
+
+                opciones = []
+                if abs(dx) > abs(dy):
+                    opciones.append((1 if dx > 0 else -1, 0, 1 if dx > 0 else 3))
+                    opciones.append((0, 1 if dy > 0 else -1, 2 if dy > 0 else 0))
+                else:
+                    opciones.append((0, 1 if dy > 0 else -1, 2 if dy > 0 else 0))
+                    opciones.append((1 if dx > 0 else -1, 0, 1 if dx > 0 else 3))
+
+                todas = [(0, -1, 0), (1, 0, 1), (0, 1, 2), (-1, 0, 3)]
+                random.shuffle(todas)
+                for o in todas:
+                    if o not in opciones:
+                        opciones.append(o)
+
+                for mdx, mdy, mrot in opciones:
+                    nx = ex + mdx
+                    ny = ey + mdy
+
+                    if not (0 <= nx <= self.ancho - 3 and 0 <= ny <= self.alto - 3):
+                        continue
+
+                    if abs(nx - px) < 3 and abs(ny - py) < 3:
+                        continue
+
+                    choca_otro = False
+                    for otro in self.enemigos:
+                        if otro is not enemigo and otro.get('vivo', True):
+                            ox, oy = otro['posicion']
+                            if abs(nx - ox) < 3 and abs(ny - oy) < 3:
+                                choca_otro = True
+                                break
+                    if choca_otro:
+                        continue
+
+                    # Comprobar colisión con muros
+                    choca_muro = False
+                    if hasattr(self, 'muros_posiciones'):
+                        for ox in range(3):
+                            for oy in range(3):
+                                if (nx + ox, ny + oy) in self.muros_posiciones:
+                                    choca_muro = True
+                                    break
+                            if choca_muro:
+                                break
+                    if choca_muro:
+                        continue
+
+                    enemigo['posicion'] = [nx, ny]
+                    enemigo['direccion'] = (mdx, mdy)
+                    enemigo['rotacion'] = mrot
+                    ex, ey = nx, ny
+                    break
+
+            # Disparo según alineación o cadencia
+            enemigo['tiempo_ultimo_disparo'] += 0.05
+            alineado = False
+            edx, edy = enemigo['direccion']
+            if abs(ex - px) <= 1:
+                if py > ey and edy > 0:
+                    alineado = True
+                elif py < ey and edy < 0:
+                    alineado = True
+            elif abs(ey - py) <= 1:
+                if px > ex and edx > 0:
+                    alineado = True
+                elif px < ex and edx < 0:
+                    alineado = True
+
+            cooldown_alineado = enemigo.get('cooldown_alineado', 0.8)
+            if alineado and enemigo['tiempo_ultimo_disparo'] >= cooldown_alineado:
+                self.tank_disparar(es_jugador=False, enemigo=enemigo)
+                enemigo['tiempo_ultimo_disparo'] = 0
+            elif enemigo['tiempo_ultimo_disparo'] >= enemigo.get('tiempo_entre_disparos', 1.5):
+                self.tank_disparar(es_jugador=False, enemigo=enemigo)
+                enemigo['tiempo_ultimo_disparo'] = 0
+
+    def tank_actualizar_balas(self):
+        # 1. Balas del jugador
+        balas_j = []
+        for bala in self.balas_jugador:
+            bala['x'] += bala['dx']
+            bala['y'] += bala['dy']
+            bx, by = bala['x'], bala['y']
+
+            if bx < 0 or bx >= self.ancho or by < 0 or by >= self.alto:
+                continue
+
+            # Impacto en cualquiera de los tanques enemigos vivos
+            impacto = False
+            for enemigo in self.enemigos:
+                if not enemigo.get('vivo', True):
+                    continue
+                ex, ey = enemigo['posicion']
+                if ex <= bx < ex + 3 and ey <= by < ey + 3:
+                    enemigo['salud'] -= bala.get('damage', 25)
+                    self.puntuacion += 10
+                    if enemigo['salud'] <= 0:
+                        enemigo['salud'] = 0
+                        enemigo['vivo'] = False
+                        # Puntuación según tipo: Strong (más) > Generic > Fast (menos)
+                        if enemigo['tipo'] == 'ENEMY_TANK_STRONG':
+                            self.puntuacion += 400
+                        elif enemigo['tipo'] == 'ENEMY_TANK_GENERIC':
+                            self.puntuacion += 200
+                        elif enemigo['tipo'] == 'ENEMY_TANK_FAST':
+                            self.puntuacion += 100
+                        else:
+                            self.puntuacion += 150
+                        enemigo['tiempo_respawn'] = 4.0
+                    impacto = True
+                    break
+
+            # Impacto en muros
+            if not impacto and hasattr(self, 'muros_posiciones') and (bx, by) in self.muros_posiciones:
+                muro = self.muros_posiciones[(bx, by)]
+                muro['salud'] -= bala.get('damage', 25)
+                if muro['salud'] <= 0:
+                    self.destruir_muro(muro)
+                    self.puntuacion += 5
+                impacto = True
+
+            if not impacto:
+                balas_j.append(bala)
+
+        self.balas_jugador = balas_j
+
+        # 2. Balas enemigas
+        balas_e = []
+        for bala in self.balas_enemigos:
+            bala['x'] += bala['dx']
+            bala['y'] += bala['dy']
+            bx, by = bala['x'], bala['y']
+
+            if bx < 0 or bx >= self.ancho or by < 0 or by >= self.alto:
+                continue
+
+            impacto = False
+
+            # Impacto en el jugador
+            if self.jugador_posicion:
+                px, py = self.jugador_posicion
+                if px <= bx < px + 3 and py <= by < py + 3:
+                    if getattr(self, 'tiempo_invencible_jugador', 0) <= 0:
+                        self.jugador_salud -= bala.get('damage', 20)
+                        if self.jugador_salud <= 0:
+                            self.jugador_vidas -= 1
+                            if self.jugador_vidas > 0:
+                                # Reaparece en su esquina de origen con salud completa y 2s de gracia
+                                self.jugador_salud = getattr(self, 'jugador_salud_max', 100)
+                                self.jugador_posicion = list(getattr(self, 'jugador_spawn_pos', [self.ancho - 3, self.alto - 3]))
+                                self.tank_direccion = (0, -1)
+                                self.tank_rotacion = 0
+                                self.tiempo_invencible_jugador = 2.0
+                                self.balas_restantes_jugador = getattr(self, 'balas_max_jugador', 5)
+                                self.cooldown_recarga_jugador = 0.0
+                            else:
+                                self.jugador_salud = 0
+                                self.ejecutar_evento('ON_ZERO_HEALTH')
+                                self.juego_terminado = True
+                    impacto = True
+
+            # Impacto en otros tanques enemigos (fuego cruzado: se pueden hacer daño entre ellos)
+            if not impacto:
+                tirador = bala.get('tirador')
+                for otro in self.enemigos:
+                    if otro is not tirador and otro.get('vivo', True):
+                        ox, oy = otro['posicion']
+                        if ox <= bx < ox + 3 and oy <= by < oy + 3:
+                            otro['salud'] -= bala.get('damage', 20)
+                            if otro['salud'] <= 0:
+                                otro['salud'] = 0
+                                otro['vivo'] = False
+                                otro['tiempo_respawn'] = 4.0
+                            impacto = True
+                            break
+
+            # Impacto en muros
+            if not impacto and hasattr(self, 'muros_posiciones') and (bx, by) in self.muros_posiciones:
+                muro = self.muros_posiciones[(bx, by)]
+                muro['salud'] -= bala.get('damage', 20)
+                if muro['salud'] <= 0:
+                    self.destruir_muro(muro)
+                impacto = True
+
+            if not impacto:
+                balas_e.append(bala)
+        self.balas_enemigos = balas_e
+
+        # 3. Colisión entre balas
+        if self.balas_jugador and self.balas_enemigos:
+            pos_e = {(b['x'], b['y']) for b in self.balas_enemigos}
+            nuevas_j = []
+            destruidas_e = set()
+            for b in self.balas_jugador:
+                pos = (b['x'], b['y'])
+                if pos in pos_e:
+                    destruidas_e.add(pos)
+                else:
+                    nuevas_j.append(b)
+            self.balas_jugador = nuevas_j
+            self.balas_enemigos = [b for b in self.balas_enemigos if (b['x'], b['y']) not in destruidas_e]
+
+    def tank_actualizar(self):
+        if getattr(self, 'tiempo_invencible_jugador', 0) > 0:
+            self.tiempo_invencible_jugador -= 0.05
+        if getattr(self, 'cooldown_recarga_jugador', 0.0) > 0.0:
+            self.cooldown_recarga_jugador -= 0.05
+            if self.cooldown_recarga_jugador <= 0.0:
+                self.cooldown_recarga_jugador = 0.0
+                self.balas_restantes_jugador = getattr(self, 'balas_max_jugador', 5)
+
+        # Manejo del spawn y duración del martillo de curación
+        if getattr(self, 'martillo_activo', False):
+            self.timer_vida_martillo -= 0.05
+            if self.timer_vida_martillo <= 0.0:
+                self.martillo_activo = False
+                self.posicion_martillo = None
+                self.timer_spawn_martillo = getattr(self, 'intervalo_spawn_martillo', 15.0)
+            else:
+                self.tank_verificar_recogida_martillo()
+        else:
+            self.timer_spawn_martillo -= 0.05
+            if self.timer_spawn_martillo <= 0.0:
+                self.tank_spawnear_martillo()
+
+        self.tank_mover_y_disparar_enemigo()
+        self.tank_actualizar_balas()
 
     def tank_spawnear_jugador(self, accion):
-        coords = accion['params'][0] if accion['params'] else [self.ancho // 2, self.alto // 2]
+        coords = accion['params'][0] if accion.get('params') else [self.ancho - 3, self.alto - 3]
         self.jugador_posicion = [coords[0], coords[1]]
 
         # Limitar al área de juego considerando el tamaño 3x3
         self.jugador_posicion[0] = max(0, min(self.ancho - 3, self.jugador_posicion[0]))
         self.jugador_posicion[1] = max(0, min(self.alto - 3, self.jugador_posicion[1]))
+        self.jugador_spawn_pos = list(self.jugador_posicion)
+        shape_tank = self.datos_juego.get('shapes', {}).get('PLAYER_TANK', {})
+        self.jugador_salud_max = shape_tank.get('HEALTH', 100)
+        self.jugador_salud = self.jugador_salud_max
+        self.balas_max_jugador = 5
+        self.balas_restantes_jugador = 5
+        self.cooldown_recarga_jugador = 0.0
 
+    def tank_spawnear_enemigo(self, tipo_enemigo, accion):
+        coords = accion['params'][0] if accion.get('params') else [0, 0]
+        if coords == 'RANDOM':
+            coords = [random.randint(0, self.ancho - 3), random.randint(0, self.alto - 3)]
+        else:
+            coords = [max(0, min(self.ancho - 3, coords[0])), max(0, min(self.alto - 3, coords[1]))]
+
+        shape_data = self.datos_juego.get('shapes', {}).get(tipo_enemigo, {})
+        salud = shape_data.get('HEALTH', 100)
+        damage = shape_data.get('DAMAGE', 20)
+        speed = shape_data.get('SPEED', 20)
+        color = shape_data.get('COLOR', '#ff0000')
+
+        # Cadencia de tiro: speed tiene menor cadencia (dispara menos frecuente)
+        if tipo_enemigo == 'ENEMY_TANK_FAST':
+            cadencia = 2.8
+            cooldown_alineado = 1.4
+        elif tipo_enemigo == 'ENEMY_TANK_STRONG':
+            cadencia = 2.0
+            cooldown_alineado = 1.0
+        else: # ENEMY_TANK_GENERIC
+            cadencia = 1.5
+            cooldown_alineado = 0.8
+
+        enemigo_existente = None
+        for e in self.enemigos:
+            if e['tipo'] == tipo_enemigo:
+                enemigo_existente = e
+                break
+
+        if enemigo_existente:
+            enemigo_existente['posicion'] = list(coords)
+            enemigo_existente['spawn_pos'] = list(coords)
+            enemigo_existente['salud'] = salud
+            enemigo_existente['salud_max'] = salud
+            enemigo_existente['damage'] = damage
+            enemigo_existente['speed'] = speed
+            enemigo_existente['color'] = color
+            enemigo_existente['vivo'] = True
+            enemigo_existente['rotacion'] = 2
+            enemigo_existente['direccion'] = (0, 1)
+            enemigo_existente['tiempo_entre_disparos'] = cadencia
+            enemigo_existente['cooldown_alineado'] = cooldown_alineado
+        else:
+            nuevo_enemigo = {
+                'tipo': tipo_enemigo,
+                'posicion': list(coords),
+                'spawn_pos': list(coords),
+                'direccion': (0, 1),
+                'rotacion': 2,
+                'salud': salud,
+                'salud_max': salud,
+                'damage': damage,
+                'speed': speed,
+                'color': color,
+                'vivo': True,
+                'tiempo_respawn': 0,
+                'timer_movimiento': random.uniform(0, 0.1),
+                'tiempo_ultimo_disparo': random.uniform(0, 1.0),
+                'tiempo_entre_disparos': cadencia,
+                'cooldown_alineado': cooldown_alineado
+            }
+            self.enemigos.append(nuevo_enemigo)
+
+    def tank_spawnear_generic_tank(self, accion):
+        self.tank_spawnear_enemigo('ENEMY_TANK_GENERIC', accion)
+
+    def tank_spawnear_martillo(self, accion=None):
+        coords = None
+        if accion and accion.get('params') and accion['params'][0] != 'RANDOM':
+            coords = list(accion['params'][0])
+            coords[0] = max(0, min(self.ancho - 3, coords[0]))
+            coords[1] = max(0, min(self.alto - 3, coords[1]))
+        else:
+            # Generar posición aleatoria que no solape con jugador ni enemigos vivos
+            posibles = []
+            for _ in range(50):
+                rx = random.randint(1, max(1, self.ancho - 4))
+                ry = random.randint(1, max(1, self.alto - 4))
+                # Distancia mínima con el jugador
+                if self.jugador_posicion:
+                    if abs(rx - self.jugador_posicion[0]) < 4 and abs(ry - self.jugador_posicion[1]) < 4:
+                        continue
+                # Distancia mínima con enemigos vivos
+                solapa_enemigo = False
+                for e in getattr(self, 'enemigos', []):
+                    if e.get('vivo', True):
+                        ex, ey = e['posicion']
+                        if abs(rx - ex) < 4 and abs(ry - ey) < 4:
+                            solapa_enemigo = True
+                            break
+                if solapa_enemigo:
+                    continue
+                # Que no solape con muros
+                solapa_muro = False
+                if hasattr(self, 'muros_posiciones'):
+                    for ox in range(3):
+                        for oy in range(3):
+                            if (rx + ox, ry + oy) in self.muros_posiciones:
+                                solapa_muro = True
+                                break
+                        if solapa_muro:
+                            break
+                if solapa_muro:
+                    continue
+                posibles.append([rx, ry])
+                break
+
+            if posibles:
+                coords = posibles[0]
+            else:
+                coords = [random.randint(1, max(1, self.ancho - 4)), random.randint(1, max(1, self.alto - 4))]
+
+        self.posicion_martillo = coords
+        self.martillo_activo = True
+        self.timer_vida_martillo = getattr(self, 'duracion_vida_martillo', 12.0)
+
+    def tank_verificar_recogida_martillo(self):
+        if not getattr(self, 'martillo_activo', False) or not self.posicion_martillo or not self.jugador_posicion:
+            return
+        px, py = self.jugador_posicion
+        hx, hy = self.posicion_martillo
+        # Comprobar solapamiento 3x3 entre jugador y martillo
+        if abs(px - hx) < 3 and abs(py - hy) < 3:
+            self.martillo_activo = False
+            self.posicion_martillo = None
+            self.timer_spawn_martillo = getattr(self, 'intervalo_spawn_martillo', 15.0)
+            self.timer_vida_martillo = 0.0
+            salud_antes = self.jugador_salud
+            self.ejecutar_evento('ON_GRAB_HAMMER')
+            if self.jugador_salud == salud_antes and self.jugador_salud < getattr(self, 'jugador_salud_max', 100):
+                self.jugador_salud = min(getattr(self, 'jugador_salud_max', 100), self.jugador_salud + 25)
+
+    def agregar_muro(self, x, y, salud=50, color='#B85D19'):
+        pos = (x, y)
+        if pos in self.muros_posiciones:
+            return
+        muro = {
+            'x': x,
+            'y': y,
+            'salud': salud,
+            'salud_max': salud,
+            'color': color
+        }
+        self.muros.append(muro)
+        self.muros_posiciones[pos] = muro
+
+    def destruir_muro(self, muro):
+        pos = (muro['x'], muro['y'])
+        if pos in self.muros_posiciones:
+            del self.muros_posiciones[pos]
+        if muro in self.muros:
+            self.muros.remove(muro)
+
+    def tank_spawnear_muro(self, accion=None):
+        shape_wall = self.datos_juego.get('shapes', {}).get('WALL', {})
+        salud = shape_wall.get('HEALTH', 50)
+        color = shape_wall.get('COLOR') or shape_wall.get('color') or '#B85D19'
+
+        if accion and accion.get('params') and accion['params']:
+            coords = accion['params'][0]
+            if coords != 'RANDOM':
+                wx = max(0, min(self.ancho - 1, coords[0]))
+                wy = max(0, min(self.alto - 1, coords[1]))
+                self.agregar_muro(wx, wy, salud, color)
+                return
+
+        # Si no se especificaron coordenadas, generar mapa táctico de muros
+        self.tank_generar_mapa_muros()
+
+    def tank_generar_mapa_muros(self):
+        shape_wall = self.datos_juego.get('shapes', {}).get('WALL', {})
+        salud = shape_wall.get('HEALTH', 50)
+        color = shape_wall.get('COLOR') or shape_wall.get('color') or '#B85D19'
+
+        coords = set()
+
+        # 1. Columnas defensivas en la izquierda (x=8, 9)
+        for y in range(4, 9):
+            coords.add((8, y))
+            coords.add((9, y))
+        for y in range(16, 21):
+            coords.add((8, y))
+            coords.add((9, y))
+
+        # 2. Columnas defensivas en la derecha (x=30, 31)
+        for y in range(4, 9):
+            coords.add((30, y))
+            coords.add((31, y))
+        for y in range(16, 21):
+            coords.add((30, y))
+            coords.add((31, y))
+
+        # 3. Barreras medias (x=14, 15 y x=24, 25)
+        for y in range(7, 12):
+            coords.add((14, y))
+            coords.add((15, y))
+            coords.add((24, y))
+            coords.add((25, y))
+        for y in range(13, 18):
+            coords.add((14, y))
+            coords.add((15, y))
+            coords.add((24, y))
+            coords.add((25, y))
+
+        # 4. Búnker e islas centrales (x=19, 20)
+        for y in range(4, 7):
+            coords.add((19, y))
+            coords.add((20, y))
+        for y in range(10, 15):
+            coords.add((19, y))
+            coords.add((20, y))
+        for y in range(18, 21):
+            coords.add((19, y))
+            coords.add((20, y))
+
+        # 5. Muros protectores de cruce
+        for x in range(3, 7):
+            coords.add((x, 12))
+            coords.add((39 - x, 12))
+
+        for wx, wy in coords:
+            self.agregar_muro(wx, wy, salud, color)
 
 
 

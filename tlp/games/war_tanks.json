@@ -1,0 +1,454 @@
+{
+  "tipo_juego": "TANKS",
+  "config": {
+    "grid_size": [
+      46,
+      45
+    ],
+    "colores_piezas": {
+      "PLAYER_TANK": "#025a06",
+      "HAMMER": "#000000",
+      "ENEMY_TANK_GENERIC": "#ff0000",
+      "ENEMY_TANK_STRONG": "#ffe600",
+      "ENEMY_TANK_FAST": "#0cceff"
+    }
+  },
+  "shapes": {
+    "PLAYER_TANK": {
+      "tipo_forma": "RECTANGLE",
+      "CHANCE": 1,
+      "SPEED": 20,
+      "HEAL": 1,
+      "DAMAGE": 25,
+      "HEALTH": 100,
+      "COLOR": "#025a06",
+      "states": [
+        [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            1
+          ]
+        ]
+      ]
+    },
+    "HAMMER": {
+      "tipo_forma": "RECTANGLE",
+      "CHANCE": 1,
+      "SPEED": 1,
+      "HEAL": 1,
+      "DAMAGE": 1,
+      "HEALTH": 1,
+      "COLOR": "#000000",
+      "states": [
+        [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ]
+      ]
+    },
+    "ENEMY_TANK_GENERIC": {
+      "tipo_forma": "RECTANGLE",
+      "CHANCE": 1,
+      "SPEED": 20,
+      "HEAL": 1,
+      "DAMAGE": 20,
+      "HEALTH": 100,
+      "COLOR": "#ff0000",
+      "states": [
+        [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            1
+          ]
+        ]
+      ]
+    },
+    "ENEMY_TANK_STRONG": {
+      "tipo_forma": "RECTANGLE",
+      "CHANCE": 1,
+      "SPEED": 20,
+      "HEAL": 1,
+      "DAMAGE": 19,
+      "HEALTH": 200,
+      "COLOR": "#ffe600",
+      "states": [
+        [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            1
+          ]
+        ]
+      ]
+    },
+    "ENEMY_TANK_FAST": {
+      "tipo_forma": "RECTANGLE",
+      "CHANCE": 1,
+      "SPEED": 40,
+      "HEAL": 1,
+      "DAMAGE": 10,
+      "HEALTH": 100,
+      "COLOR": "#0cceff",
+      "states": [
+        [
+          [
+            0,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            0
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            1
+          ]
+        ]
+      ]
+    }
+  },
+  "powerups": {},
+  "events": {
+    "ON_START": [
+      {
+        "accion": "SPAWN",
+        "objeto": "PLAYER",
+        "params": [
+          [
+            40,
+            20
+          ]
+        ]
+      },
+      {
+        "accion": "SPAWN",
+        "objeto": "ENEMY_TANK_GENERIC",
+        "params": [
+          "RANDOM"
+        ]
+      }
+    ],
+    "ON_GRAB_HAMMER": [
+      {
+        "accion": "HEAL",
+        "objeto": "25",
+        "params": []
+      }
+    ],
+    "ON_ZERO_HEALTH": [
+      {
+        "accion": "GAME_OVER",
+        "objeto": null,
+        "params": []
+      }
+    ],
+    "ON_KEY_UP": [
+      {
+        "accion": "SET_DIRECTION",
+        "objeto": "UP",
+        "params": []
+      },
+      {
+        "accion": "MOVE",
+        "objeto": "PLAYER",
+        "params": [
+          "UP"
+        ]
+      }
+    ],
+    "ON_KEY_DOWN": [
+      {
+        "accion": "SET_DIRECTION",
+        "objeto": "DOWN",
+        "params": []
+      },
+      {
+        "accion": "MOVE",
+        "objeto": "PLAYER",
+        "params": [
+          "DOWN"
+        ]
+      }
+    ],
+    "ON_KEY_LEFT": [
+      {
+        "accion": "SET_DIRECTION",
+        "objeto": "LEFT",
+        "params": []
+      },
+      {
+        "accion": "MOVE",
+        "objeto": "PLAYER",
+        "params": [
+          "LEFT"
+        ]
+      }
+    ],
+    "ON_KEY_RIGHT": [
+      {
+        "accion": "SET_DIRECTION",
+        "objeto": "RIGHT",
+        "params": []
+      },
+      {
+        "accion": "MOVE",
+        "objeto": "PLAYER",
+        "params": [
+          "RIGHT"
+        ]
+      }
+    ]
+  }
+}

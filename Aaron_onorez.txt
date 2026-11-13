@@ -1,0 +1,22 @@
+1. Propósito de la Solución
+La solución consiste en una aplicación web centralizada que permite a clientes y personal interno consultar la disponibilidad de medicamentos y registrar solicitudes de pedidos. Su objetivo es eliminar la dispersión operativa de las consultas manuales y reducir la dependencia de chats informales de WhatsApp en la gestión de medicamentos faltantes. La plataforma centraliza el seguimiento y la comparación con proveedores aliados de la red ANDROFAR, sin reemplazar el ERP contable existente ni automatizar procesos externos.
+
+2. Actores Involucrados
+- Cliente: consulta la disponibilidad y precios referenciales en el catálogo web y registra solicitudes de pedidos indicando sus datos básicos y modalidad de entrega.
+- Auxiliar de farmacia: gestiona las solicitudes recibidas, registra y compara las ofertas de proveedores aliados, actualiza los estados de cada pedido y documenta observaciones operativas.
+- Director técnico o regente de farmacia: supervisa la trazabilidad de los medicamentos gestionados y audita los tiempos de respuesta del proceso.
+- Propietario o gerente: visualiza el historial consolidado de solicitudes y evalúa el desempeño de los proveedores aliados.
+
+3. Funcionamiento por Módulos Dentro del Alcance
+Consulta de disponibilidad y catálogo: el usuario busca el medicamento por nombre o presentación para visualizar su precio de referencia y estado actual. Si el producto figura como agotado o no disponible en el local, el sistema habilita el registro inmediato de una solicitud por faltante.
+
+Registro de solicitudes de pedidos: la aplicación captura únicamente los datos esenciales para la gestión, incluyendo la identificación y contacto del cliente, el medicamento y cantidad requerida, la modalidad de entrega presencial o a domicilio, la fecha automática de creación y la asignación del auxiliar responsable.
+
+Consulta y comparación de proveedores aliados: ante un producto agotado, el auxiliar registra en la plataforma las cotizaciones de los distribuidores aliados evaluando cinco criterios clave: disponibilidad, precio ofertado, proximidad, tiempo estimado de entrega y confiabilidad. El sistema presenta una comparativa para seleccionar la mejor alternativa o cerrar la solicitud si no existen unidades en la red.
+
+Seguimiento y trazabilidad del pedido: cada solicitud avanza por estados definidos desde su registro hasta la entrega o cierre. Toda actualización exige registrar fecha, usuario responsable y observaciones operativas para mantener el control de cada caso.
+
+Historial organizado: la plataforma almacena todas las solicitudes y proveedores consultados en un repositorio filtrable que facilita la trazabilidad histórica y apoya la toma de decisiones de compra.
+
+4. Exclusiones del Alcance
+La aplicación web no realiza facturación electrónica ni modifica la base de datos del ERP actual. Tampoco procesa pagos por QR, pasarelas bancarias ni valida transferencias de forma automática, por lo que los cobros continúan verificándose manualmente y solo se dejan registrados como observación en el pedido. De igual manera, la solución no sustituye ni se integra automáticamente con WhatsApp o Outlook, ni abarca la dispensación física, la orientación farmacéutica, los registros sanitarios de temperatura, humedad, limpieza, residuos e INVIMA, ni la gestión de nómina, turnos o asuntos laborales.

@@ -13,4 +13,4 @@ nota1 = float(input("ingrese la nota 1 pos_asamblea: "))
 nota2 = float(input("ingrese la nota 2 pos_asamblea: "))
 nota3 = float(input("ingrese la nota 3 pos_asamblea: "))
 
-print(f"la calificaciok es {Calificacion(quiz1, parcial1, nota1, nota2, nota3)}")
+print(f"la calificacion es {Calificacion(quiz1, parcial1, nota1, nota2, nota3)}")

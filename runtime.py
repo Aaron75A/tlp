@@ -135,6 +135,10 @@ class Juego:
             self.muros_posiciones = {}
             self.velocidad_gravedad = 0.3
             self.tiempo_ultimo_disparo_jugador = 0
+            self.cooldown_recarga_base = 4.0
+            self.fase_jefe_activa = False
+            self.jefe_derrotado = False
+            self.boss_enemigo = None
             
         
         # --- Control del menú: Solo para Snake Evolved ---
@@ -268,15 +272,23 @@ class Juego:
             else:
                 lineas.append("BALAS: %d/5" % getattr(self, 'balas_restantes_jugador', 5))
                 self.label_powerup.config(fg='#FFD700')
+            if getattr(self, 'fase_jefe_activa', False):
+                lineas.append("⚡ CD MEJORADO: 1.5s")
             if getattr(self, 'martillo_activo', False):
                 lineas.append("🔨 CURA: ACTIVO")
             else:
                 lineas.append("🔨 CURA: %.0fs" % max(0, getattr(self, 'timer_spawn_martillo', 15.0)))
             lineas.append("---")
-            for e in self.enemigos:
-                nombre = e['tipo'].replace('ENEMY_TANK_', '')
-                estado = ("%d HP" % e['salud']) if e.get('vivo', True) else "REVIVE"
-                lineas.append("%s: %s" % (nombre, estado))
+            if getattr(self, 'fase_jefe_activa', False) and getattr(self, 'boss_enemigo', None):
+                boss = self.boss_enemigo
+                estado_boss = ("%d HP" % boss['salud']) if boss.get('vivo', True) else "DERROTADO"
+                lineas.append("👑 JEFE: %s" % estado_boss)
+            else:
+                for e in self.enemigos:
+                    if not e.get('es_boss', False):
+                        nombre = e['tipo'].replace('ENEMY_TANK_', '')
+                        estado = ("%d HP" % e['salud']) if e.get('vivo', True) else "REVIVE"
+                        lineas.append("%s: %s" % (nombre, estado))
             self.label_powerup.config(text="\n".join(lineas))
         elif self.tiempo_slow > 0:
             self.label_powerup.config(text="SLOW: %.1fs" % self.tiempo_slow)
@@ -391,14 +403,16 @@ class Juego:
                 if not enemigo.get('vivo', True):
                     continue
                 tipo = enemigo['tipo']
-                shape_enemy = self.datos_juego.get('shapes', {}).get(tipo, {})
+                shape_enemy = (self.datos_juego.get('shapes', {}).get(tipo, {}) or
+                               self.datos_juego.get('boss', {}).get(tipo, {}) or
+                               self.datos_juego.get('shapes', {}).get('BOSS', {}))
                 estados_enemy = shape_enemy.get('states', [
                     [[0, 1, 0],
                      [1, 1, 1],
                      [1, 1, 1]]
                 ])
                 color_enemy = enemigo.get('color', shape_enemy.get('COLOR', '#FF0000'))
-                rot = enemigo.get('rotacion', 2)
+                rot = enemigo.get('rotacion', 0 if enemigo.get('es_boss') else 2)
                 matriz_enemy = estados_enemy[rot % len(estados_enemy)]
 
                 base_x, base_y = enemigo['posicion']
@@ -407,6 +421,22 @@ class Juego:
                         if celda == 1:
                             self.dibujar_celda(base_x + x_offset, base_y + y_offset, color_enemy)
 
+            # Barra superior de HP del Jefe Final
+            if getattr(self, 'fase_jefe_activa', False) and getattr(self, 'boss_enemigo', None):
+                boss = self.boss_enemigo
+                if boss.get('vivo', True):
+                    ts = self.taman_celda
+                    bar_w = self.ancho * ts - 60
+                    bar_x1 = 30
+                    bar_y1 = 8
+                    bar_y2 = 22
+                    pct = max(0.0, min(1.0, boss['salud'] / max(1, boss.get('salud_max', 500))))
+                    self.canvas.create_rectangle(bar_x1, bar_y1, bar_x1 + bar_w, bar_y2, fill='#330011', outline='#FF0055', width=2)
+                    self.canvas.create_rectangle(bar_x1, bar_y1, bar_x1 + int(bar_w * pct), bar_y2, fill='#FF0055', outline='')
+                    self.canvas.create_text(bar_x1 + bar_w // 2, (bar_y1 + bar_y2) // 2,
+                                            text="JEFE FINAL: %d / %d HP" % (boss['salud'], boss.get('salud_max', 500)),
+                                            fill='#FFFFFF', font=('Consolas', 9, 'bold'))
+
             # Dibujar balas del jugador y enemigos
             for bala in self.balas_jugador:
                 self.dibujar_celda_circular(bala['x'], bala['y'], bala.get('color', '#00FF00'))
@@ -414,22 +444,30 @@ class Juego:
             for bala in self.balas_enemigos:
                 self.dibujar_celda_circular(bala['x'], bala['y'], bala.get('color', '#FF4444'))
 
-            # Dibujar martillo de curación si está activo
+            # Dibujar item de curación: círculo compacto con cruz médica
             if getattr(self, 'martillo_activo', False) and getattr(self, 'posicion_martillo', None):
-                shape_hammer = self.datos_juego.get('shapes', {}).get('HAMMER', {})
-                estados_hammer = shape_hammer.get('states', [
-                    [[1, 1, 1],
-                     [0, 1, 0],
-                     [0, 1, 0]]
-                ])
-                color_hammer = shape_hammer.get('COLOR') or shape_hammer.get('color') or '#ffffff'
-                matriz_hammer = estados_hammer[0]
                 hx, hy = self.posicion_martillo
-                for y_offset, fila in enumerate(matriz_hammer):
-                    for x_offset, celda in enumerate(fila):
-                        if celda == 1:
-                            self.dibujar_celda(hx + x_offset, hy + y_offset, color_hammer)
+                self.dibujar_item_vida(hx, hy)
 
+
+    def dibujar_item_vida(self, x, y):
+        """Dibuja el item de curacion como un circulo verde compacto con una cruz medica blanca."""
+        ts = self.taman_celda
+        # Centro del item (ocupa solo 1 celda, mucho mas pequeno que el 3x3 anterior)
+        cx = x * ts + ts // 2
+        cy = y * ts + ts // 2
+        r = max(4, ts // 2 - 2)
+        # Fondo negro de celda
+        self.canvas.create_rectangle(x * ts, y * ts, x * ts + ts, y * ts + ts,
+                                     fill='#111111', outline='#333333')
+        # Circulo verde brillante
+        self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r,
+                                fill='#00e676', outline='#FFFFFF', width=2)
+        # Cruz medica blanca horizontal
+        bar = max(2, r // 2)
+        self.canvas.create_rectangle(cx - bar, cy - 2, cx + bar, cy + 2, fill='#FFFFFF', outline='')
+        # Cruz medica blanca vertical
+        self.canvas.create_rectangle(cx - 2, cy - bar, cx + 2, cy + bar, fill='#FFFFFF', outline='')
 
     def dibujar_celda(self, x, y, color):
         ts = self.taman_celda # Alias para taman de celda
@@ -553,6 +591,8 @@ class Juego:
                         self.tank_spawnear_martillo(accion)
                     elif verbo == 'SPAWN' and objeto == 'WALL':
                         self.tank_spawnear_muro(accion)
+                    elif verbo == 'SPAWN' and (objeto == 'BOSS' or objeto == 'FINAL_BOSS'):
+                        self.tank_spawnear_boss(accion)
                     elif verbo == 'SPAWN' and objeto:
                         self.tank_spawnear_enemigo(objeto, accion)
 
@@ -911,13 +951,15 @@ class Juego:
         nueva_pos[0] = max(0, min(self.ancho - 3, nueva_pos[0]))
         nueva_pos[1] = max(0, min(self.alto - 3, nueva_pos[1]))
 
-        # Comprobar colisión con tanques enemigos vivos (no atravesar otros tanques)
+        # Comprobar colisión con tanques enemigos vivos (no atravesar otros tanques ni el jefe)
         nx, ny = nueva_pos
         colision = False
         for enemigo in self.enemigos:
             if enemigo.get('vivo', True):
                 ex, ey = enemigo['posicion']
-                if abs(nx - ex) < 3 and abs(ny - ey) < 3:
+                ew = enemigo.get('ancho', 3)
+                eh = enemigo.get('alto', 3)
+                if nx < ex + ew and nx + 3 > ex and ny < ey + eh and ny + 3 > ey:
                     colision = True
                     break
 
@@ -1013,15 +1055,17 @@ class Juego:
         if es_jugador:
             if not self.jugador_posicion or self.juego_terminado:
                 return
-            # Si está en cooldown de recarga de 4 segundos
+            cd_base = getattr(self, 'cooldown_recarga_base', 4.0)
+            # Si está en cooldown de recarga
             if getattr(self, 'cooldown_recarga_jugador', 0.0) > 0.0:
                 return
             # Si no le quedan balas
             if getattr(self, 'balas_restantes_jugador', 0) <= 0:
-                self.cooldown_recarga_jugador = 4.0
+                self.cooldown_recarga_jugador = cd_base
                 return
             ahora = time.time()
-            if ahora - getattr(self, 'tiempo_ultimo_disparo_jugador', 0) < 0.15:
+            delay_disparo = 0.10 if getattr(self, 'fase_jefe_activa', False) else 0.15
+            if ahora - getattr(self, 'tiempo_ultimo_disparo_jugador', 0) < delay_disparo:
                 return
             self.tiempo_ultimo_disparo_jugador = ahora
 
@@ -1044,7 +1088,7 @@ class Juego:
             # Reducir balas disponibles (máximo 5)
             self.balas_restantes_jugador -= 1
             if self.balas_restantes_jugador <= 0:
-                self.cooldown_recarga_jugador = 4.0 # Inicia cooldown de 4 segundos
+                self.cooldown_recarga_jugador = cd_base # Inicia cooldown (1.5s en fase jefe, 4.0s normal)
         else:
             if self.juego_terminado:
                 return
@@ -1054,6 +1098,10 @@ class Juego:
                         enemigo = e
                         break
             if not enemigo or not enemigo.get('vivo', True):
+                return
+
+            if enemigo.get('es_boss', False):
+                self.tank_disparar_boss(enemigo)
                 return
 
             base_x, base_y = enemigo['posicion']
@@ -1108,10 +1156,19 @@ class Juego:
 
             ex, ey = enemigo['posicion']
 
-            # Movimiento acorde a su velocidad (SPEED)
+            if enemigo.get('es_estatico', False) or enemigo.get('es_boss', False):
+                # El Jefe Final es estático: no se mueve, ataca con proyectiles pesados
+                enemigo['tiempo_ultimo_disparo'] += 0.05
+                cadencia_boss = enemigo.get('cadencia_disparo', 1.2)
+                if enemigo['tiempo_ultimo_disparo'] >= cadencia_boss:
+                    self.tank_disparar_boss(enemigo)
+                    enemigo['tiempo_ultimo_disparo'] = 0.0
+                continue
+
+            # Movimiento acorde a su velocidad (SPEED reducida para mayor balance)
             enemigo['timer_movimiento'] += 0.05
-            # SPEED 20 -> 0.30s, SPEED 40 -> 0.15s
-            intervalo = max(0.10, 6.0 / max(1, enemigo.get('speed', 20)))
+            # Intervalo ligeramente mayor para reducir la velocidad de los tanques normales
+            intervalo = max(0.15, 7.0 / max(1, enemigo.get('speed', 20)))
             if enemigo['timer_movimiento'] >= intervalo:
                 enemigo['timer_movimiento'] = 0
                 dx = px - ex
@@ -1210,10 +1267,21 @@ class Juego:
                 if not enemigo.get('vivo', True):
                     continue
                 ex, ey = enemigo['posicion']
-                if ex <= bx < ex + 3 and ey <= by < ey + 3:
-                    enemigo['salud'] -= bala.get('damage', 25)
-                    self.puntuacion += 10
-                    if enemigo['salud'] <= 0:
+                ew = enemigo.get('ancho', 3)
+                eh = enemigo.get('alto', 3)
+                if ex <= bx < ex + ew and ey <= by < ey + eh:
+                    if enemigo.get('es_boss', False):
+                        # Lógica de vida del Jefe Final: requiere múltiples impactos
+                        enemigo['salud'] -= bala.get('damage', 25)
+                        self.puntuacion += 25
+                        if enemigo['salud'] <= 0:
+                            enemigo['salud'] = 0
+                            enemigo['vivo'] = False
+                            self.puntuacion += 2000
+                            self.jefe_derrotado = True
+                            self.mostrar_victoria_jefe()
+                    else:
+                        # Tanques enemigos normales mueren de un solo proyectil
                         enemigo['salud'] = 0
                         enemigo['vivo'] = False
                         # Puntuación según tipo: Strong (más) > Generic > Fast (menos)
@@ -1225,7 +1293,8 @@ class Juego:
                             self.puntuacion += 100
                         else:
                             self.puntuacion += 150
-                        enemigo['tiempo_respawn'] = 4.0
+                        if not getattr(self, 'fase_jefe_activa', False):
+                            enemigo['tiempo_respawn'] = 4.0
                     impacto = True
                     break
 
@@ -1242,6 +1311,10 @@ class Juego:
                 balas_j.append(bala)
 
         self.balas_jugador = balas_j
+
+        # Verificar transición al Jefe Final al alcanzar 1000 puntos
+        if self.puntuacion >= 1000 and not getattr(self, 'fase_jefe_activa', False):
+            self.tank_iniciar_transicion_jefe()
 
         # 2. Balas enemigas
         balas_e = []
@@ -1284,12 +1357,15 @@ class Juego:
                 for otro in self.enemigos:
                     if otro is not tirador and otro.get('vivo', True):
                         ox, oy = otro['posicion']
-                        if ox <= bx < ox + 3 and oy <= by < oy + 3:
+                        ow = otro.get('ancho', 3)
+                        oh = otro.get('alto', 3)
+                        if ox <= bx < ox + ow and oy <= by < oy + oh:
                             otro['salud'] -= bala.get('damage', 20)
                             if otro['salud'] <= 0:
                                 otro['salud'] = 0
                                 otro['vivo'] = False
-                                otro['tiempo_respawn'] = 4.0
+                                if not otro.get('es_boss', False):
+                                    otro['tiempo_respawn'] = 4.0
                             impacto = True
                             break
 
@@ -1426,6 +1502,207 @@ class Juego:
 
     def tank_spawnear_generic_tank(self, accion):
         self.tank_spawnear_enemigo('ENEMY_TANK_GENERIC', accion)
+
+    def tank_spawnear_boss(self, accion=None):
+        coords = [18, 2]
+        if accion and accion.get('params') and accion['params']:
+            if accion['params'][0] != 'RANDOM':
+                coords = list(accion['params'][0])
+                coords[0] = max(0, min(self.ancho - 5, coords[0]))
+                coords[1] = max(0, min(self.alto - 5, coords[1]))
+
+        boss_shape = (self.datos_juego.get('shapes', {}).get('BOSS') or
+                      self.datos_juego.get('shapes', {}).get('FINAL_BOSS') or
+                      self.datos_juego.get('boss', {}).get('FINAL_BOSS', {}))
+
+        hp = boss_shape.get('HP') or boss_shape.get('HEALTH') or 500
+        damage = boss_shape.get('DAMAGE', 50)
+        color = boss_shape.get('COLOR') or boss_shape.get('color') or '#FF0055'
+
+        for e in self.enemigos:
+            if e.get('es_boss', False):
+                e['posicion'] = list(coords)
+                e['salud'] = hp
+                e['salud_max'] = hp
+                e['damage'] = damage
+                e['vivo'] = True
+                self.boss_enemigo = e
+                return
+
+        nuevo_boss = {
+            'tipo': 'FINAL_BOSS',
+            'nombre': 'FINAL_BOSS',
+            'es_boss': True,
+            'es_estatico': True,
+            'posicion': list(coords),
+            'spawn_pos': list(coords),
+            'direccion': (0, 1),
+            'rotacion': 0,
+            'ancho': 5,
+            'alto': 5,
+            'salud': hp,
+            'salud_max': hp,
+            'damage': damage,
+            'speed': 0,
+            'color': color,
+            'vivo': True,
+            'tiempo_respawn': 0,
+            'timer_movimiento': 0.0,
+            'tiempo_ultimo_disparo': 0.0,
+            'cadencia_disparo': 1.2
+        }
+        self.enemigos.append(nuevo_boss)
+        self.boss_enemigo = nuevo_boss
+
+    def tank_disparar_boss(self, boss):
+        if self.juego_terminado or not boss.get('vivo', True):
+            return
+        base_x, base_y = boss['posicion']
+        bx = base_x + 2
+        by = base_y + 5
+        damage = boss.get('damage', 50)
+        color = boss.get('color', '#FF0055')
+
+        # Rotar entre 3 patrones de ataque
+        patron = boss.get('contador_patron', 0) % 3
+        boss['contador_patron'] = patron + 1
+
+        if patron == 0:
+            # --- Patron 0: Abanico de 5 direcciones hacia abajo ---
+            direcciones = [(0, 1), (-1, 1), (1, 1), (-2, 1), (2, 1)]
+            for dx, dy in direcciones:
+                self.balas_enemigos.append({
+                    'x': max(0, min(self.ancho - 1, bx + dx)),
+                    'y': by,
+                    'dx': dx,
+                    'dy': dy,
+                    'damage': damage,
+                    'color': color,
+                    'tipo_enemigo': 'BOSS',
+                    'tirador': boss
+                })
+
+        elif patron == 1:
+            # --- Patron 1: Apuntado directamente al jugador ---
+            if self.jugador_posicion:
+                px, py = self.jugador_posicion
+                raw_dx = px - bx
+                raw_dy = py - by
+                dist = max(1, abs(raw_dx) + abs(raw_dy))
+                # Normalizar a paso unitario en la cuadricula
+                step_x = 0 if raw_dx == 0 else (1 if raw_dx > 0 else -1)
+                step_y = 0 if raw_dy == 0 else (1 if raw_dy > 0 else -1)
+                for offset in [0, -1, 1]:
+                    self.balas_enemigos.append({
+                        'x': max(0, min(self.ancho - 1, bx + offset)),
+                        'y': by,
+                        'dx': step_x,
+                        'dy': step_y,
+                        'damage': int(damage * 0.8),
+                        'color': '#FF6600',
+                        'tipo_enemigo': 'BOSS',
+                        'tirador': boss
+                    })
+            else:
+                # Fallback: disparo central
+                self.balas_enemigos.append({
+                    'x': bx, 'y': by,
+                    'dx': 0, 'dy': 1,
+                    'damage': damage,
+                    'color': color,
+                    'tipo_enemigo': 'BOSS',
+                    'tirador': boss
+                })
+
+        else:
+            # --- Patron 2: Flancos laterales + disparo central pesado ---
+            # Central (maximo dano)
+            self.balas_enemigos.append({
+                'x': bx, 'y': by,
+                'dx': 0, 'dy': 1,
+                'damage': damage,
+                'color': color,
+                'tipo_enemigo': 'BOSS',
+                'tirador': boss
+            })
+            # Flanco izquierdo diagonal
+            self.balas_enemigos.append({
+                'x': max(0, bx - 2),
+                'y': by,
+                'dx': -1, 'dy': 1,
+                'damage': max(20, damage // 2),
+                'color': '#FF3377',
+                'tipo_enemigo': 'BOSS',
+                'tirador': boss
+            })
+            # Flanco derecho diagonal
+            self.balas_enemigos.append({
+                'x': min(self.ancho - 1, bx + 2),
+                'y': by,
+                'dx': 1, 'dy': 1,
+                'damage': max(20, damage // 2),
+                'color': '#FF3377',
+                'tipo_enemigo': 'BOSS',
+                'tirador': boss
+            })
+
+    def tank_iniciar_transicion_jefe(self):
+        self.fase_jefe_activa = True
+        # Reducción del tiempo de enfriamiento de recarga del jugador a 1.5s
+        self.cooldown_recarga_base = 1.5
+        if getattr(self, 'cooldown_recarga_jugador', 0.0) > 1.5:
+            self.cooldown_recarga_jugador = 1.5
+
+        # Retirar a los enemigos normales para la fase final
+        for e in self.enemigos:
+            if not e.get('es_boss', False):
+                e['vivo'] = False
+                e['tiempo_respawn'] = 999999
+        self.balas_enemigos = []
+
+        # Generar obstáculos donde el tanque jugador pueda esconderse mientras recarga
+        self.tank_generar_obstaculos_jefe()
+
+        # Disparar evento de spawn del jefe o spawn por defecto
+        if 'ON_TARGET_SCORE' in self.datos_juego.get('events', {}):
+            self.ejecutar_evento('ON_TARGET_SCORE')
+        else:
+            self.tank_spawnear_boss()
+
+    def tank_generar_obstaculos_jefe(self):
+        self.muros = []
+        self.muros_posiciones = {}
+        shape_wall = self.datos_juego.get('shapes', {}).get('WALL', {})
+        color = shape_wall.get('COLOR') or shape_wall.get('color') or '#B85D19'
+        salud_muro = 150
+
+        # Búnker Izquierdo (cobertura táctica mientras recarga)
+        for y in (14, 15):
+            for x in range(6, 13):
+                self.agregar_muro(x, y, salud=salud_muro, color=color)
+
+        # Búnker Central (protección frontal contra el cañón del jefe)
+        for y in (16, 17):
+            for x in range(16, 25):
+                self.agregar_muro(x, y, salud=salud_muro, color=color)
+
+        # Búnker Derecho
+        for y in (14, 15):
+            for x in range(28, 35):
+                self.agregar_muro(x, y, salud=salud_muro, color=color)
+
+        # Pilares defensivos laterales
+        for y in range(10, 13):
+            self.agregar_muro(10, y, salud=salud_muro, color=color)
+            self.agregar_muro(30, y, salud=salud_muro, color=color)
+
+    def mostrar_victoria_jefe(self):
+        try:
+            import tkinter.messagebox as tkMessageBox
+            tkMessageBox.showinfo("¡VICTORIA!", "¡Has derrotado al Jefe Final!\nPuntuacion Final: " + str(self.puntuacion))
+        except Exception:
+            pass
+        self.juego_terminado = True
 
     def tank_spawnear_martillo(self, accion=None):
         coords = None

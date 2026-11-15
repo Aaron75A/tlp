@@ -2,7 +2,7 @@ GAME_TYPE TANKS
 
 GAME_GRID (40,25)
 
-#Lógica
+# Lógica de inicio y eventos
 ON START:
   SPAWN ENEMY_TANK_GENERIC AT (0,0)
   SPAWN ENEMY_TANK_STRONG AT (37,0)
@@ -11,8 +11,13 @@ ON START:
   SPAWN WALL
 END
 
+# Evento al alcanzar 1000 puntos: Transición y aparición del Jefe Final
+ON TARGET_SCORE:
+  SPAWN BOSS AT (18,2)
+END
 
-#Definicion de elementos
+
+# Definicion de elementos
 
 DEFINE SHAPE WALL:
     STATE 1:
@@ -22,6 +27,7 @@ DEFINE SHAPE WALL:
 END
 
 DEFINE SHAPE PLAYER_TANK:
+    TYPE: PLAYER
     STATE 1:
         [0,1,0]
         [1,1,1]
@@ -53,6 +59,7 @@ DEFINE SHAPE HAMMER:
 END
 
 DEFINE SHAPE ENEMY_TANK_GENERIC:
+    TYPE: ENEMY
     STATE 1:
         [0,1,0]
         [1,1,1]
@@ -72,11 +79,12 @@ DEFINE SHAPE ENEMY_TANK_GENERIC:
     COLOR #ff0000
     HEALTH 100
     DAMAGE 20
-    SPEED 20
+    SPEED 12
 END
 
 DEFINE SHAPE ENEMY_TANK_STRONG:
-STATE 1:
+    TYPE: ENEMY
+    STATE 1:
         [0,1,0]
         [1,1,1]
         [1,1,1]
@@ -95,10 +103,11 @@ STATE 1:
     COLOR #ffe600
     HEALTH 200
     DAMAGE 40
-    SPEED 10
+    SPEED 8
 END
 
 DEFINE SHAPE ENEMY_TANK_FAST:
+    TYPE: ENEMY
     STATE 1:
         [0,1,0]
         [1,1,1]
@@ -118,7 +127,21 @@ DEFINE SHAPE ENEMY_TANK_FAST:
     COLOR #0cceff
     HEALTH 100
     DAMAGE 15
-    SPEED 40
+    SPEED 20
+END
+
+# Bloque BOSS: Jefe Final (matriz grande 5x5, estático, mayor daño y puntos de vida)
+DEFINE BOSS FINAL_BOSS:
+    STATE 1:
+        [1,0,1,0,1]
+        [1,1,1,1,1]
+        [1,1,1,1,1]
+        [1,0,1,0,1]
+        [0,0,1,0,0]
+    COLOR #ff0055
+    HP 500
+    DAMAGE 50
+    SPEED 0
 END
 
 ON GRAB_HAMMER:

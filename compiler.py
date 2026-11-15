@@ -19,7 +19,7 @@ class Parser:
         self.tokens = tokens
         self.posicion = 0
         self.ast = {"tipo_juego": None, "config": {}, "shapes": {},
-                    "powerups": {}, "events": {}}
+                    "boss": {}, "powerups": {}, "events": {}}
 
     def parse(self):
         while self.posicion < len(self.tokens):
@@ -30,11 +30,16 @@ class Parser:
                 self.parsear_nivel()
             elif token_actual == 'GAME_GRID':
                 self.parsear_grid()
+            elif token_actual == 'BOSS':
+                self.parsear_boss()
             elif token_actual == 'DEFINE':
-                # Diferenciar entre DEFINE SHAPE y DEFINE POWERUP
+                # Diferenciar entre DEFINE SHAPE, DEFINE POWERUP y DEFINE BOSS
                 if (self.posicion + 1 < len(self.tokens) and
                         self.tokens[self.posicion + 1] == 'POWERUP'):
                     self.parsear_powerup()
+                elif (self.posicion + 1 < len(self.tokens) and
+                        self.tokens[self.posicion + 1] == 'BOSS'):
+                    self.parsear_boss()
                 else:
                     self.parsear_shape()
             elif token_actual == 'ON':
@@ -85,7 +90,8 @@ class Parser:
         self.ast['config']['grid_size'] = [ancho, alto]
 
     def parsear_colores(self):
-        self.consumir('COLORES')
+        if self.tokens[self.posicion] in ('COLORES', 'COLOR'):
+            self.consumir(self.tokens[self.posicion])
         self.consumir('{')
         colores = {}
 
@@ -108,14 +114,16 @@ class Parser:
         nombre_shape = self.consumir()
         self.consumir(':')
         
-        #Valores por defecto para los atributos de la forma
+        # Valores por defecto para los atributos de la forma
         shape_data = {
             'tipo_forma': 'RECTANGLE',
+            'tipo': 'ENEMY',
             'CHANCE': 1,
             'SPEED': 1,
             'HEAL': 1,
             'DAMAGE': 1,
             'HEALTH': 1,
+            'HP': 1,
             'COLOR': '#FFFFFF',
             'states': []
         }
@@ -129,24 +137,42 @@ class Parser:
             
             if token == 'TYPE':
                 self.consumir('TYPE')
-                shape_data['tipo_forma'] = self.consumir()
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
+                tipo_val = self.consumir()
+                shape_data['tipo_forma'] = tipo_val
+                shape_data['tipo'] = tipo_val
             elif token == 'CHANCE':
                 self.consumir('CHANCE')
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
                 shape_data['CHANCE'] = int(self.consumir())
             elif token == 'SPEED':
                 self.consumir('SPEED')
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
                 shape_data['SPEED'] = int(self.consumir())
             elif token == 'HEAL':
                 self.consumir('HEAL')
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
                 shape_data['HEAL'] = int(self.consumir())
             elif token == 'DAMAGE':
                 self.consumir('DAMAGE')
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
                 shape_data['DAMAGE'] = int(self.consumir())
-            elif token == 'HEALTH':
-                self.consumir('HEALTH')
-                shape_data['HEALTH'] = int(self.consumir())
+            elif token in ('HEALTH', 'HP'):
+                self.consumir(token)
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
+                val = int(self.consumir())
+                shape_data['HEALTH'] = val
+                shape_data['HP'] = val
             elif token == 'COLOR':
                 self.consumir('COLOR')
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
                 color = self.consumir()
                 shape_data['COLOR'] = color
                 self.ast['config']['colores_piezas'][nombre_shape] = color
@@ -169,6 +195,89 @@ class Parser:
 
         self.consumir('END')
         self.ast['shapes'][nombre_shape] = shape_data
+
+    def parsear_boss(self):
+        if self.posicion < len(self.tokens) and self.tokens[self.posicion] == 'DEFINE':
+            self.consumir('DEFINE')
+        self.consumir('BOSS')
+        if self.posicion < len(self.tokens) and self.tokens[self.posicion] != ':':
+            nombre_boss = self.consumir()
+        else:
+            nombre_boss = 'FINAL_BOSS'
+        self.consumir(':')
+
+        boss_data = {
+            'tipo': 'BOSS',
+            'tipo_forma': 'RECTANGLE',
+            'CHANCE': 1,
+            'SPEED': 0,
+            'HEAL': 0,
+            'DAMAGE': 50,
+            'HEALTH': 500,
+            'HP': 500,
+            'COLOR': '#FF0055',
+            'states': []
+        }
+
+        if 'colores_piezas' not in self.ast['config']:
+            self.ast['config']['colores_piezas'] = {}
+
+        while self.posicion < len(self.tokens) and self.tokens[self.posicion] != 'END':
+            token = self.tokens[self.posicion]
+
+            if token == 'TYPE':
+                self.consumir('TYPE')
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
+                boss_data['tipo_forma'] = self.consumir()
+            elif token == 'COLOR':
+                self.consumir('COLOR')
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
+                color = self.consumir()
+                boss_data['COLOR'] = color
+                self.ast['config']['colores_piezas'][nombre_boss] = color
+                self.ast['config']['colores_piezas']['BOSS'] = color
+            elif token in ('HP', 'HEALTH'):
+                self.consumir(token)
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
+                val = int(self.consumir())
+                boss_data['HEALTH'] = val
+                boss_data['HP'] = val
+            elif token == 'DAMAGE':
+                self.consumir('DAMAGE')
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
+                boss_data['DAMAGE'] = int(self.consumir())
+            elif token == 'SPEED':
+                self.consumir('SPEED')
+                if self.posicion < len(self.tokens) and self.tokens[self.posicion] == ':':
+                    self.consumir(':')
+                boss_data['SPEED'] = int(self.consumir())
+            elif token == 'STATE':
+                self.consumir('STATE')
+                self.consumir()
+                self.consumir(':')
+                matriz = []
+                while self.posicion < len(self.tokens) and self.tokens[self.posicion] == '[':
+                    fila = []
+                    self.consumir('[')
+                    while self.tokens[self.posicion] != ']':
+                        fila.append(int(self.consumir()))
+                        if self.tokens[self.posicion] == ',': self.consumir(',')
+                    self.consumir(']')
+                    matriz.append(fila)
+                boss_data['states'].append(matriz)
+            else:
+                self.posicion += 1
+
+        self.consumir('END')
+        if 'boss' not in self.ast:
+            self.ast['boss'] = {}
+        self.ast['boss'][nombre_boss] = boss_data
+        self.ast['shapes'][nombre_boss] = boss_data
+        self.ast['shapes']['BOSS'] = boss_data
 
     def parsear_powerup(self):
         self.consumir('DEFINE')
@@ -232,8 +341,17 @@ class Parser:
     def parsear_evento(self):
         self.consumir('ON')
         nombre_evento = 'ON_' + self.consumir()
+        params_evento = []
+        while self.posicion < len(self.tokens) and self.tokens[self.posicion] != ':':
+            params_evento.append(self.consumir())
         self.consumir(':')
         acciones = []
+        palabras_reservadas = [
+            'END', 'ON', 'DEFINE', 'SPAWN', 'MOVE', 'ROTATE', 'INCREASE_SCORE',
+            'SET_DIRECTION', 'GROW', 'COLOR', 'GAME_OVER', 'SHRINK', 'DECREASE_SCORE',
+            'CLOUD_COLLISION', 'FULL_SHRINK', 'POWERUP', 'HEAL', 'DAMAGE', 'SPEED',
+            'HEALTH', 'HP', 'BOSS', 'TARGET_SCORE'
+        ]
         while self.posicion < len(self.tokens) and self.tokens[self.posicion] != 'END':
             verbo = self.consumir()
             
@@ -246,7 +364,7 @@ class Parser:
                 if self.posicion < len(self.tokens) and self.tokens[self.posicion] == 'PLAYER':
                     objeto = self.consumir('PLAYER')
                     params = []
-                    if self.posicion < len(self.tokens) and self.tokens[self.posicion] not in ['END', 'ON', 'DEFINE', 'SPAWN', 'MOVE', 'ROTATE', 'INCREASE_SCORE', 'SET_DIRECTION', 'GROW','COLOR','GAME_OVER', 'SHRINK', 'DECREASE_SCORE','CLOUD_COLLISION','FULL_SHRINK','POWERUP','HEAL','DAMAGE','SPEED','HEALTH']:
+                    if self.posicion < len(self.tokens) and self.tokens[self.posicion] not in palabras_reservadas:
                         params.append(self.consumir())
                     acciones.append({'accion': verbo, 'objeto': objeto, 'params': params})
                 else:
@@ -267,11 +385,16 @@ class Parser:
                     y = int(self.consumir())
                     self.consumir(')')
                     params.append([x, y])
-            elif self.posicion < len(self.tokens) and self.tokens[self.posicion] not in ['END', 'ON', 'DEFINE', 'SPAWN', 'MOVE', 'ROTATE', 'INCREASE_SCORE', 'SET_DIRECTION', 'GROW','COLOR','GAME_OVER', 'SHRINK', 'DECREASE_SCORE','CLOUD_COLLISION','FULL_SHRINK','POWERUP','HEAL','DAMAGE','SPEED','HEALTH']:
+            elif self.posicion < len(self.tokens) and self.tokens[self.posicion] not in palabras_reservadas:
                 params.append(self.consumir())
             acciones.append({'accion': verbo, 'objeto': objeto, 'params': params})
         self.consumir('END')
         self.ast['events'][nombre_evento] = acciones
+        if params_evento and nombre_evento == 'ON_TARGET_SCORE':
+            try:
+                self.ast['config']['target_score'] = int(params_evento[0])
+            except ValueError:
+                pass
 
 def generar_codigo(ast, archivo_salida):
     with open(archivo_salida, 'w') as f:

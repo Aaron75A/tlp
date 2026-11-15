@@ -11,17 +11,21 @@
       "HAMMER": "#ffffff",
       "ENEMY_TANK_GENERIC": "#ff0000",
       "ENEMY_TANK_STRONG": "#ffe600",
-      "ENEMY_TANK_FAST": "#0cceff"
+      "ENEMY_TANK_FAST": "#0cceff",
+      "FINAL_BOSS": "#ff0055",
+      "BOSS": "#ff0055"
     }
   },
   "shapes": {
     "WALL": {
       "tipo_forma": "RECTANGLE",
+      "tipo": "ENEMY",
       "CHANCE": 1,
       "SPEED": 1,
       "HEAL": 1,
       "DAMAGE": 1,
       "HEALTH": 50,
+      "HP": 50,
       "COLOR": "#B85D19",
       "states": [
         [
@@ -32,12 +36,14 @@
       ]
     },
     "PLAYER_TANK": {
-      "tipo_forma": "RECTANGLE",
+      "tipo_forma": "PLAYER",
+      "tipo": "PLAYER",
       "CHANCE": 1,
       "SPEED": 20,
       "HEAL": 1,
       "DAMAGE": 25,
       "HEALTH": 100,
+      "HP": 100,
       "COLOR": "#025a06",
       "states": [
         [
@@ -112,11 +118,13 @@
     },
     "HAMMER": {
       "tipo_forma": "RECTANGLE",
+      "tipo": "ENEMY",
       "CHANCE": 1,
       "SPEED": 1,
       "HEAL": 1,
       "DAMAGE": 1,
       "HEALTH": 1,
+      "HP": 1,
       "COLOR": "#ffffff",
       "states": [
         [
@@ -139,12 +147,14 @@
       ]
     },
     "ENEMY_TANK_GENERIC": {
-      "tipo_forma": "RECTANGLE",
+      "tipo_forma": "ENEMY",
+      "tipo": "ENEMY",
       "CHANCE": 1,
-      "SPEED": 20,
+      "SPEED": 12,
       "HEAL": 1,
       "DAMAGE": 20,
       "HEALTH": 100,
+      "HP": 100,
       "COLOR": "#ff0000",
       "states": [
         [
@@ -218,12 +228,14 @@
       ]
     },
     "ENEMY_TANK_STRONG": {
-      "tipo_forma": "RECTANGLE",
+      "tipo_forma": "ENEMY",
+      "tipo": "ENEMY",
       "CHANCE": 1,
-      "SPEED": 10,
+      "SPEED": 8,
       "HEAL": 1,
       "DAMAGE": 40,
       "HEALTH": 200,
+      "HP": 200,
       "COLOR": "#ffe600",
       "states": [
         [
@@ -297,12 +309,14 @@
       ]
     },
     "ENEMY_TANK_FAST": {
-      "tipo_forma": "RECTANGLE",
+      "tipo_forma": "ENEMY",
+      "tipo": "ENEMY",
       "CHANCE": 1,
-      "SPEED": 40,
+      "SPEED": 20,
       "HEAL": 1,
       "DAMAGE": 15,
       "HEALTH": 100,
+      "HP": 100,
       "COLOR": "#0cceff",
       "states": [
         [
@@ -374,6 +388,158 @@
           ]
         ]
       ]
+    },
+    "FINAL_BOSS": {
+      "tipo": "BOSS",
+      "tipo_forma": "RECTANGLE",
+      "CHANCE": 1,
+      "SPEED": 0,
+      "HEAL": 0,
+      "DAMAGE": 50,
+      "HEALTH": 500,
+      "HP": 500,
+      "COLOR": "#ff0055",
+      "states": [
+        [
+          [
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            1,
+            0,
+            0
+          ]
+        ]
+      ]
+    },
+    "BOSS": {
+      "tipo": "BOSS",
+      "tipo_forma": "RECTANGLE",
+      "CHANCE": 1,
+      "SPEED": 0,
+      "HEAL": 0,
+      "DAMAGE": 50,
+      "HEALTH": 500,
+      "HP": 500,
+      "COLOR": "#ff0055",
+      "states": [
+        [
+          [
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            1,
+            0,
+            0
+          ]
+        ]
+      ]
+    }
+  },
+  "boss": {
+    "FINAL_BOSS": {
+      "tipo": "BOSS",
+      "tipo_forma": "RECTANGLE",
+      "CHANCE": 1,
+      "SPEED": 0,
+      "HEAL": 0,
+      "DAMAGE": 50,
+      "HEALTH": 500,
+      "HP": 500,
+      "COLOR": "#ff0055",
+      "states": [
+        [
+          [
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            1,
+            0,
+            0
+          ]
+        ]
+      ]
     }
   },
   "powerups": {},
@@ -423,6 +589,18 @@
         "accion": "SPAWN",
         "objeto": "WALL",
         "params": []
+      }
+    ],
+    "ON_TARGET_SCORE": [
+      {
+        "accion": "SPAWN",
+        "objeto": "BOSS",
+        "params": [
+          [
+            18,
+            2
+          ]
+        ]
       }
     ],
     "ON_GRAB_HAMMER": [

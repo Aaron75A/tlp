@@ -13,8 +13,8 @@ El juego War Tanks se basa en un bucle interactivo sobre una cuadrícula bidimen
 - El bucle principal (game_loop) ejecuta cíclicamente tank_actualizar(), que se encarga de mover entidades,
   manejar los temporizadores de disparo, mover proyectiles en la cuadrícula y detectar colisiones.
 
-- Los muros que se generan durante la fase del jefe son destructibles: absorben impactos tanto del jugador
-  como del jefe, sirviendo de refugio mientras el jugador recarga su cargador.
+- Los muros del mapa son destructibles: absorben impactos tanto del jugador como de los enemigos y del jefe,
+  sirviendo de cobertura y permitiendo abrir brechas tácticas a base de disparos.
 
 
 2. DIFERENCIACION ENTRE TANQUE JUGADOR Y TANQUES ENEMIGOS EN EL CODIGO
@@ -31,12 +31,12 @@ En runtime.py y war_tanks.brick, el jugador y los enemigos se distinguen de vari
 
 - Disparo:
   * El jugador dispara manualmente con la barra espaciadora a través de tank_disparar(es_jugador=True),
-    con un cargador de 5 balas y un temporizador de recarga (cooldown_recarga_jugador).
-  * Los enemigos disparan automáticamente cuando se alinean con el jugador o por cadencia periódica.
+    con un cargador de 2 balas y un temporizador de recarga (cooldown_recarga_jugador).
+  * Los enemigos disparan automáticamente cuando se alinean con el jugador o por cadencia periódica,
+    respetando un cooldown inicial de 3.0s (cooldown_inicio_enemigos) al comenzar el juego donde no atacan.
 
 - Daño y vidas:
-  * El jugador tiene 3 vidas (jugador_vidas) y 100 puntos de salud, con reaparición e invencibilidad
-    temporal después de perder una vida.
+  * El jugador tiene 1 sola vida (jugador_vidas = 1) y 100 puntos de salud; si la pierde, el juego termina inmediatamente (ON_ZERO_HEALTH).
   * Los tanques enemigos normales mueren de un solo proyectil directo (salud = 0, vivo = False) y
     reaparecen en sus zonas asignadas con velocidades moderadas para equilibrar la dificultad.
 
@@ -55,8 +55,8 @@ En runtime.py y war_tanks.brick, el jugador y los enemigos se distinguen de vari
   sus disparos con más calma.
 
 - Características del jefe:
-  * Dimensiones 5x5 celdas (frente al 3x3 de los tanques comunes), marcado con es_estatico = True
-    para que no se mueva, actuando como torreta/fortaleza.
+  * Dimensiones 5x5 celdas (frente al 3x3 de los tanques comunes), móvil (SPEED 8), con capacidad de
+    desplazamiento lateral y vertical para alinearse con el jugador y buscar ángulos de tiro.
   * Dispara proyectiles pesados de 50 de daño que pueden eliminar la mitad de la barra de salud de golpe.
   * Tiene 500 HP que se reducen progresivamente con cada impacto. Una barra roja en la parte superior
     de la pantalla muestra cuánta vida le queda en todo momento.
@@ -65,7 +65,48 @@ En runtime.py y war_tanks.brick, el jugador y los enemigos se distinguen de vari
 
 4. DETALLE DE CAMBIOS POR ARCHIVO
 
+--------------------------------------------------------------------------------
+Cambios hechos por Juan Jose
+--------------------------------------------------------------------------------
+
+archivo: games/war_tanks.brick
+
+- Creación y diseño integral del archivo fuente del juego War Tanks en lenguaje BrickScript.
+- Definición de dimensiones de la cuadrícula de batalla: GAME_GRID (40, 25).
+- Lógica de inicio (ON START) con generación en las 4 esquinas del mapa:
+  * ENEMY_TANK_GENERIC en (0,0) [esquina superior izquierda]
+  * ENEMY_TANK_STRONG en (37,0) [esquina superior derecha]
+  * ENEMY_TANK_FAST en (0,22) [esquina inferior izquierda]
+  * PLAYER en (37,22) [esquina inferior derecha]
+  * SPAWN WALL para desplegar los muros de cobertura iniciales.
+- Definición de formas, colores, salud, daño y velocidad de tanques (3x3 con matrices rotacionales):
+  * PLAYER_TANK: verde (#025a06), HEALTH 100, DAMAGE 25, SPEED 20, 4 estados direccionales.
+  * ENEMY_TANK_GENERIC: rojo (#ff0000), HEALTH 100, DAMAGE 20, SPEED 12, balanceado.
+  * ENEMY_TANK_STRONG: amarillo (#ffe600), HEALTH 200, DAMAGE 40, SPEED 8, tanque pesado y lento.
+  * ENEMY_TANK_FAST: cian (#0cceff), HEALTH 100, DAMAGE 15, SPEED 20, tanque rápido con menor cadencia.
+- Definición de muros destructibles (DEFINE SHAPE WALL, matriz [1], COLOR #B85D19, HEALTH 50).
+- Definición del ítem de curación (DEFINE SHAPE HAMMER y evento ON GRAB_HAMMER: HEAL 25).
+- Mapeo de controles del jugador (ON KEY_UP, ON KEY_DOWN, ON KEY_LEFT, ON KEY_RIGHT) y evento ON ZERO_HEALTH: GAME_OVER.
+
+archivo: runtime.py
+
+- Movilidad del jugador: tank_cambiar_direccion con rotación visual en 4 sentidos y control de límites.
+- Disparo del jugador: tank_disparar con proyectiles verdes (#00FF00) asignados a la barra espaciadora.
+- Mecánica de cargador: limitación a 2 balas consecutivas antes de entrar en cooldown de recarga.
+- Regla de vida única: jugador_vidas = 1 con finalización inmediata de la partida (Game Over) al morir.
+- Inteligencia artificial enemiga: tank_mover_y_disparar_enemigo con cálculo de trayectorias, esquive de obstáculos y disparo automático por alineación o cadencia.
+- Arquetipos enemigos diferenciados: velocidades, daños y cadencias distintas para Generic, Strong y Fast.
+- Fuego cruzado / friendly fire: los proyectiles de los enemigos se dañan y eliminan entre sí.
+- Sistema de puntuación por bajas: Fast otorga 100 pts, Generic 200 pts y Strong 400 pts.
+- Intransitabilidad y colisiones: tanques no pueden atravesarse mutuamente ni cruzar muros intactos.
+- Muros destructibles: generación táctica (tank_generar_mapa_muros), absorción de daño (50 HP), renderizado con textura de mortero/grietas y apertura de brechas al destruirse.
+- Periodo de gracia inicial: cooldown_inicio_enemigos = 3.0s durante el cual los tanques enemigos no atacan al empezar la partida.
+- Ítem de curación aleatorio y periódico: tank_spawnear_martillo (cada 15s en zonas sin muros) y curación de 25 HP al contacto (tank_verificar_recogida_martillo).
+- Panel lateral (HUD): muestra vidas (corazón), HP, estado del cargador / recarga, cooldown de gracia, estado del martillo y vida de enemigos.
+
+--------------------------------------------------------------------------------
 Cambios hechos por Aaron David Onorez
+--------------------------------------------------------------------------------
 
 archivo: compiler.py
 
@@ -105,8 +146,11 @@ archivo: runtime.py
   se implementó la deducción progresiva de HP para el jefe y se puso el gatillo de transición a los 1000
   puntos. (líneas 1256-1302)
 
-- Nuevo método tank_spawnear_boss: crea y posiciona el jefe con 5x5 celdas, estático, 500 HP y 50
-  de daño. (líneas ~1497-1555)
+- Nuevo método tank_spawnear_boss: crea y posiciona el jefe con 5x5 celdas, móvil (SPEED 8), 500 HP y 50
+  de daño.
+
+- Nuevo método tank_mover_y_disparar_boss: gestiona el movimiento táctico del jefe de 5x5 celdas (evitando
+  colisiones con muros y jugador) y coordina su cadencia de disparo.
 
 - Nuevo método tank_disparar_boss: maneja tres patrones de ataque rotatorios que el jefe alterna en
   cada disparo: abanico de 5 direcciones hacia abajo, apuntado directamente al jugador y flancos
@@ -130,7 +174,7 @@ archivo: games/war_tanks.brick
 
 - Se redujo la propiedad SPEED de los tanques enemigos para equilibrar su movilidad frente al jugador. (líneas 61-130)
 
-- Nuevo bloque DEFINE BOSS FINAL_BOSS con matriz 5x5, COLOR #ff0055, HP 500, DAMAGE 50 y SPEED 0. (líneas 133-144)
+- Nuevo bloque DEFINE BOSS FINAL_BOSS con matriz 5x5, COLOR #ff0055, HP 500, DAMAGE 50 y SPEED 8. (líneas 133-144)
 
 - Nuevo evento ON TARGET_SCORE 1000 que invoca SPAWN BOSS AT (18,2). (líneas 15-17)
 
@@ -139,13 +183,19 @@ archivo: games/war_tanks.brick
 
 archivo: gramaticas bnf/tanks.bnf
 
-- Se creó la gramática BNF completa para el juego de tanques:
-  * Regla <identificacion> con TYPE: PLAYER y TYPE: ENEMY. (líneas 12-13)
-  * Regla <definicion_boss> y <propiedad_boss> para declarar bloques BOSS con matriz, color y HP. (líneas 15-26)
-  * Regla <evento> ampliada para soportar ON TARGET_SCORE disparando SPAWN BOSS. (líneas 48-53)
+- Se creó y actualizó la gramática BNF completa para el juego de tanques:
+  * Soporte de declaraciones en cualquier orden (<elementos_programa> ::= <definicion> | <evento>).
+  * Regla <identificacion> con TYPE: PLAYER, TYPE: ENEMY y tipos geométricos (RECTANGLE, CIRCLE, TRIANGLE).
+  * Regla <definicion_boss> y <propiedad_boss> para declarar bloques BOSS con matriz, color, velocidad y HP.
+  * Regla <evento> ampliada para soportar ON TARGET_SCORE, ON START, ON GRAB_HAMMER, ON ZERO_HEALTH y controles.
+  * Soporte de acciones completas: SPAWN (con o sin coordenadas), MOVE, SET_DIRECTION, HEAL, GAME_OVER y SCORE.
 
 
 5. MEJORAS ADICIONALES RECIENTES
+
+- Movimiento del Jefe Final: el jefe ya no es estático; cuenta con un sistema de rastreo horizontal inteligente
+  en tank_mover_y_disparar_boss que le permite perseguir la posición del jugador, variar su altura táctica entre
+  las filas 2 y 8, esquivar obstáculos y disparar en movimiento continuo.
 
 - Disparos dinámicos del jefe: en tank_disparar_boss se reemplazó el disparo único hacia abajo por un
   sistema de tres patrones rotatorios que el jefe alterna en cada turno de fuego. El patrón 0 lanza un
@@ -153,13 +203,37 @@ archivo: gramaticas bnf/tanks.bnf
   del jugador con tres balas en paralelo; el patrón 2 combina un disparo central pesado con dos flancos
   diagonales. Esto hace el combate mucho más dinámico e impredecible. (líneas 1557-1640)
 
+- Cooldown de gracia al arrancar: periodo inicial de 3 segundos sin disparos enemigos al comenzar la partida
+  con aviso visual en pantalla ("¡PREPÁRATE!").
+
+- Ajuste de balance del jugador: cargador limitado a 2 balas antes de recarga y 1 sola vida disponible.
+
 - Ítem de vida circular: se eliminó el dibujo basado en la matriz 3x3 del HAMMER y se creó el método
   dibujar_item_vida que pinta un óvalo verde brillante (#00e676) de radio ts/2 - 2 con una cruz médica
   blanca en el centro, todo contenido en una sola celda. El resultado es un ítem visualmente más claro
   y pequeño que antes. (líneas 448-470)
 
 
-Contribuciones: Aaron David Onorez
-(Gramática tanks.bnf, bloque BOSS en compiler, transición y vida del Jefe Final a los 1000 puntos,
-reducción de cooldown de recarga, obstáculos de cobertura, muerte de tanques normales de 1 proyectil,
-balance de velocidad, disparos multidireccionales del jefe, ítem de vida circular)
+6. RESUMEN DE CONTRIBUCIONES DEL EQUIPO
+
+- Juan Jose:
+  * Creación y diseño de games/war_tanks.brick (cuadrícula 40x25, spawns en las 4 esquinas, controles y eventos).
+  * Tanque del jugador (PLAYER_TANK): matriz 3x3 rotacional, movilidad, disparo de proyectiles verdes, cargador de 2 balas y sistema de vida única (1 vida).
+  * Tanques enemigos diferenciados: arquetipos GENERIC, STRONG y FAST con estadísticas de salud, daño y velocidad contrastadas.
+  * Inteligencia artificial enemiga: navegación autónoma con evasión de obstáculos y disparo automático por alineación o cadencia.
+  * Fuego cruzado / friendly fire entre tanques enemigos y puntuación escalonada según la dificultad del enemigo.
+  * Sistema de muros destructibles (WALL): generación de mapa táctico con pasillos y búnkeres, bloqueo de paso, absorción de daño (50 HP) y rotura progresiva con textura visual de grietas.
+  * Cooldown de gracia de 3 segundos al inicio de la partida para impedir ataques enemigos tempranos.
+  * Ítem de curación periódico (HAMMER / HEAL 25) con aparición aleatoria evitando muros.
+  * Prevención de colisiones e intransitabilidad física entre tanques.
+  * Interfaz gráfica (HUD) con estado de vidas, cargador, recarga, enfriamiento de inicio y salud enemiga.
+
+- Aaron David Onorez:
+  * Gramática tanks.bnf inicial y diseño conceptual del jefe.
+  * Bloque BOSS en compiler.py (parsear_boss, etiquetas TYPE: PLAYER/ENEMY, atributos HP/HEALTH).
+  * Evento ON TARGET_SCORE y transición cinemática a los 1000 puntos (tank_iniciar_transicion_jefe).
+  * Características del Jefe Final: matriz 5x5, 500 HP, daño pesado de 50 y barra superior de salud.
+  * Reducción del cooldown de recarga del jugador a 1.5s durante la fase del jefe.
+  * Búnkeres reforzados tácticos para la batalla final (tank_generar_obstaculos_jefe, HP 150).
+  * Sistema de disparo en tres patrones rotatorios del jefe (abanico, apuntado directo y flancos).
+  * Rediseño compacto del ítem de vida como círculo verde de 1 celda con cruz médica (dibujar_item_vida).

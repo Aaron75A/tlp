@@ -1,8 +1,13 @@
-<programa> ::= <tipo_juego> <grid> <definiciones> <eventos>
+<programa> ::= <tipo_juego> <grid> <elementos_programa>
+             | <tipo_juego> <grid> <definiciones> <eventos>
+             | <tipo_juego> <grid> <eventos> <definiciones>
 
 <tipo_juego> ::= "GAME_TYPE" "TANKS"
 
 <grid> ::= "GAME_GRID" "(" <numero> "," <numero> ")"
+
+<elementos_programa> ::= <elemento_programa> | <elemento_programa> <elementos_programa>
+<elemento_programa>  ::= <definicion> | <evento>
 
 <definiciones> ::= <definicion> | <definicion> <definiciones>
 <definicion>   ::= <definicion_shape> | <definicion_boss>
@@ -11,19 +16,21 @@
 <atributos_shape>  ::= <atributo_shape> | <atributo_shape> <atributos_shape>
 <atributo_shape>   ::= <identificacion> | <estados> | <propiedad_forma>
 
-<identificacion>   ::= "TYPE:" "PLAYER" | "TYPE:" "ENEMY" | "TYPE" "PLAYER" | "TYPE" "ENEMY"
+<identificacion>   ::= "TYPE:" <tipo_entidad> | "TYPE" <tipo_entidad>
+<tipo_entidad>     ::= "PLAYER" | "ENEMY" | "RECTANGLE" | "CIRCLE" | "TRIANGLE"
 
 <definicion_boss>  ::= "DEFINE" "BOSS" <identificador> ":" <atributos_boss> "END"
                      | "BOSS" <identificador> ":" <atributos_boss> "END"
 
 <atributos_boss>   ::= <atributo_boss> | <atributo_boss> <atributos_boss>
-<atributo_boss>    ::= <estados> | <propiedad_boss>
+<atributo_boss>    ::= <estados> | <propiedad_boss> | <identificacion>
 
 <propiedad_boss>   ::= "COLOR" <color_hex>
                      | "HP" <numero>
                      | "HEALTH" <numero>
                      | "DAMAGE" <numero>
                      | "SPEED" <numero>
+                     | "CHANCE" <numero>
 
 <propiedad_forma>  ::= "COLOR" <color_hex>
                      | "HEALTH" <numero>
@@ -38,7 +45,7 @@
 
 <matriz>  ::= <fila> | <fila> <matriz>
 <fila>    ::= "[" <valores_fila> "]"
-<valores_fila> ::= <numero> | <numero> "," <valores_fila>
+<valores_fila> ::= <numero> | <numero> "," <valores_fila> | <numero> <valores_fila>
 
 <eventos> ::= <evento> | <evento> <eventos>
 <evento>  ::= "ON" <nombre_evento_tanks> ":" <acciones_tanks> "END"
@@ -54,6 +61,7 @@
                         | "KEY_LEFT"
                         | "KEY_RIGHT"
                         | "KEY_SPACE"
+                        | "TICK"
 
 <acciones_tanks> ::= <accion_tanks> | <accion_tanks> <acciones_tanks>
 <accion_tanks>   ::= <accion_spawn>
@@ -61,20 +69,22 @@
                    | <accion_direccion>
                    | <accion_curar>
                    | <accion_gameover>
+                   | <accion_puntuacion>
 
 <accion_spawn>    ::= "SPAWN" <entidad_tank> <ubicacion_spawn>
 <entidad_tank>    ::= "PLAYER" | "WALL" | "HAMMER" | "BOSS" | <identificador>
 <ubicacion_spawn> ::= "AT" <coordenadas> | "AT" "RANDOM" | ε
 
-<accion_mover>     ::= "MOVE" "PLAYER" <direccion>
-<accion_direccion> ::= "SET_DIRECTION" <direccion>
-<accion_curar>     ::= "HEAL" <numero>
-<accion_gameover>  ::= "GAME_OVER"
+<accion_mover>      ::= "MOVE" "PLAYER" <direccion>
+<accion_direccion>  ::= "SET_DIRECTION" <direccion>
+<accion_curar>      ::= "HEAL" <numero>
+<accion_gameover>   ::= "GAME_OVER"
+<accion_puntuacion> ::= "INCREASE_SCORE" <numero> | "DECREASE_SCORE" <numero>
 
 <coordenadas>   ::= "(" <numero> "," <numero> ")"
 <direccion>     ::= "UP" | "DOWN" | "LEFT" | "RIGHT"
 <identificador> ::= <letra> | <letra> <identificador>
-<color_hex>     ::= "#" <hex> <hex> <hex> <hex> <hex> <hex>
+<color_hex>     ::= "#" <hex> <hex> <hex> <hex> <hex> <hex> | "#" <hex> <hex> <hex>
 <hex>           ::= <digito> | "A"..."F" | "a"..."f"
 <numero>        ::= <digito> | <digito> <numero>
 <letra>         ::= "A"..."Z" | "_"

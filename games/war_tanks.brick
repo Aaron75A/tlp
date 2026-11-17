@@ -130,7 +130,7 @@ DEFINE SHAPE ENEMY_TANK_FAST:
     SPEED 20
 END
 
-# Bloque BOSS: Jefe Final (matriz grande 5x5, estático, mayor daño y puntos de vida)
+# Bloque BOSS: Jefe Final (matriz grande 5x5, móvil, mayor daño y puntos de vida)
 DEFINE BOSS FINAL_BOSS:
     STATE 1:
         [1,0,1,0,1]
@@ -141,7 +141,7 @@ DEFINE BOSS FINAL_BOSS:
     COLOR #ff0055
     HP 500
     DAMAGE 50
-    SPEED 0
+    SPEED 8
 END
 
 ON GRAB_HAMMER:

@@ -115,12 +115,12 @@ class Juego:
             self.jugador_spawn_pos = [self.ancho - 3, self.alto - 3]
             self.tank_direccion = (0, -1)  # Inicialmente apuntando hacia arriba
             self.tank_rotacion = 0          # 0: Arriba, 1: Derecha, 2: Abajo, 3: Izquierda
-            self.jugador_vidas = 3
+            self.jugador_vidas = 1
             self.jugador_salud_max = shape_tank.get('HEALTH', 100)
             self.jugador_salud = self.jugador_salud_max
             self.tiempo_invencible_jugador = 0
-            self.balas_max_jugador = 5
-            self.balas_restantes_jugador = 5
+            self.balas_max_jugador = 2
+            self.balas_restantes_jugador = 2
             self.cooldown_recarga_jugador = 0.0
             self.martillo_activo = False
             self.posicion_martillo = None
@@ -136,6 +136,7 @@ class Juego:
             self.velocidad_gravedad = 0.3
             self.tiempo_ultimo_disparo_jugador = 0
             self.cooldown_recarga_base = 4.0
+            self.cooldown_inicio_enemigos = 3.0
             self.fase_jefe_activa = False
             self.jefe_derrotado = False
             self.boss_enemigo = None
@@ -270,10 +271,12 @@ class Juego:
                 lineas.append("COOLDOWN: %.1fs" % self.cooldown_recarga_jugador)
                 self.label_powerup.config(fg='#FF4444')
             else:
-                lineas.append("BALAS: %d/5" % getattr(self, 'balas_restantes_jugador', 5))
+                lineas.append("BALAS: %d/%d" % (getattr(self, 'balas_restantes_jugador', 2), getattr(self, 'balas_max_jugador', 2)))
                 self.label_powerup.config(fg='#FFD700')
             if getattr(self, 'fase_jefe_activa', False):
                 lineas.append("⚡ CD MEJORADO: 1.5s")
+            if getattr(self, 'cooldown_inicio_enemigos', 0.0) > 0.0:
+                lineas.append("🛡️ GRACIA: %.1fs" % self.cooldown_inicio_enemigos)
             if getattr(self, 'martillo_activo', False):
                 lineas.append("🔨 CURA: ACTIVO")
             else:
@@ -448,6 +451,17 @@ class Juego:
             if getattr(self, 'martillo_activo', False) and getattr(self, 'posicion_martillo', None):
                 hx, hy = self.posicion_martillo
                 self.dibujar_item_vida(hx, hy)
+
+            # Banner visual de cuenta regresiva de gracia inicial (3 segundos)
+            if getattr(self, 'cooldown_inicio_enemigos', 0.0) > 0.0 and not getattr(self, 'fase_jefe_activa', False):
+                cx = self.ancho_canvas / 2
+                cy = 25
+                self.canvas.create_text(
+                    cx, cy,
+                    text="¡PREPÁRATE! ENEMIGOS ACTIVOS EN: %.1fs" % self.cooldown_inicio_enemigos,
+                    fill='#00FFCC',
+                    font=('Consolas', 11, 'bold')
+                )
 
 
     def dibujar_item_vida(self, x, y):
@@ -1085,12 +1099,12 @@ class Juego:
                 'color': '#00FF00'
             })
 
-            # Reducir balas disponibles (máximo 5)
+            # Reducir balas disponibles (máximo 2)
             self.balas_restantes_jugador -= 1
             if self.balas_restantes_jugador <= 0:
                 self.cooldown_recarga_jugador = cd_base # Inicia cooldown (1.5s en fase jefe, 4.0s normal)
         else:
-            if self.juego_terminado:
+            if self.juego_terminado or getattr(self, 'cooldown_inicio_enemigos', 0.0) > 0.0:
                 return
             if enemigo is None:
                 for e in self.enemigos:
@@ -1156,12 +1170,18 @@ class Juego:
 
             ex, ey = enemigo['posicion']
 
-            if enemigo.get('es_estatico', False) or enemigo.get('es_boss', False):
-                # El Jefe Final es estático: no se mueve, ataca con proyectiles pesados
-                enemigo['tiempo_ultimo_disparo'] += 0.05
-                cadencia_boss = enemigo.get('cadencia_disparo', 1.2)
-                if enemigo['tiempo_ultimo_disparo'] >= cadencia_boss:
-                    self.tank_disparar_boss(enemigo)
+            if enemigo.get('es_boss', False):
+                self.tank_mover_y_disparar_boss(enemigo)
+                continue
+
+            if enemigo.get('es_estatico', False):
+                if getattr(self, 'cooldown_inicio_enemigos', 0.0) <= 0.0:
+                    enemigo['tiempo_ultimo_disparo'] += 0.05
+                    cadencia_estatico = enemigo.get('cadencia_disparo', 1.5)
+                    if enemigo['tiempo_ultimo_disparo'] >= cadencia_estatico:
+                        self.tank_disparar(es_jugador=False, enemigo=enemigo)
+                        enemigo['tiempo_ultimo_disparo'] = 0.0
+                else:
                     enemigo['tiempo_ultimo_disparo'] = 0.0
                 continue
 
@@ -1227,28 +1247,31 @@ class Juego:
                     ex, ey = nx, ny
                     break
 
-            # Disparo según alineación o cadencia
-            enemigo['tiempo_ultimo_disparo'] += 0.05
-            alineado = False
-            edx, edy = enemigo['direccion']
-            if abs(ex - px) <= 1:
-                if py > ey and edy > 0:
-                    alineado = True
-                elif py < ey and edy < 0:
-                    alineado = True
-            elif abs(ey - py) <= 1:
-                if px > ex and edx > 0:
-                    alineado = True
-                elif px < ex and edx < 0:
-                    alineado = True
+            # Disparo según alineación o cadencia (respetando cooldown de inicio de juego)
+            if getattr(self, 'cooldown_inicio_enemigos', 0.0) > 0.0:
+                enemigo['tiempo_ultimo_disparo'] = 0.0
+            else:
+                enemigo['tiempo_ultimo_disparo'] += 0.05
+                alineado = False
+                edx, edy = enemigo['direccion']
+                if abs(ex - px) <= 1:
+                    if py > ey and edy > 0:
+                        alineado = True
+                    elif py < ey and edy < 0:
+                        alineado = True
+                elif abs(ey - py) <= 1:
+                    if px > ex and edx > 0:
+                        alineado = True
+                    elif px < ex and edx < 0:
+                        alineado = True
 
-            cooldown_alineado = enemigo.get('cooldown_alineado', 0.8)
-            if alineado and enemigo['tiempo_ultimo_disparo'] >= cooldown_alineado:
-                self.tank_disparar(es_jugador=False, enemigo=enemigo)
-                enemigo['tiempo_ultimo_disparo'] = 0
-            elif enemigo['tiempo_ultimo_disparo'] >= enemigo.get('tiempo_entre_disparos', 1.5):
-                self.tank_disparar(es_jugador=False, enemigo=enemigo)
-                enemigo['tiempo_ultimo_disparo'] = 0
+                cooldown_alineado = enemigo.get('cooldown_alineado', 0.8)
+                if alineado and enemigo['tiempo_ultimo_disparo'] >= cooldown_alineado:
+                    self.tank_disparar(es_jugador=False, enemigo=enemigo)
+                    enemigo['tiempo_ultimo_disparo'] = 0
+                elif enemigo['tiempo_ultimo_disparo'] >= enemigo.get('tiempo_entre_disparos', 1.5):
+                    self.tank_disparar(es_jugador=False, enemigo=enemigo)
+                    enemigo['tiempo_ultimo_disparo'] = 0
 
     def tank_actualizar_balas(self):
         # 1. Balas del jugador
@@ -1343,7 +1366,7 @@ class Juego:
                                 self.tank_direccion = (0, -1)
                                 self.tank_rotacion = 0
                                 self.tiempo_invencible_jugador = 2.0
-                                self.balas_restantes_jugador = getattr(self, 'balas_max_jugador', 5)
+                                self.balas_restantes_jugador = getattr(self, 'balas_max_jugador', 2)
                                 self.cooldown_recarga_jugador = 0.0
                             else:
                                 self.jugador_salud = 0
@@ -1400,9 +1423,15 @@ class Juego:
             self.tiempo_invencible_jugador -= 0.05
         if getattr(self, 'cooldown_recarga_jugador', 0.0) > 0.0:
             self.cooldown_recarga_jugador -= 0.05
-            if self.cooldown_recarga_jugador <= 0.0:
+            if self.cooldown_recarga_jugador <= 1e-4:
                 self.cooldown_recarga_jugador = 0.0
-                self.balas_restantes_jugador = getattr(self, 'balas_max_jugador', 5)
+                self.balas_restantes_jugador = getattr(self, 'balas_max_jugador', 2)
+
+        # Cooldown de gracia inicial al empezar el juego (enemigos no atacan)
+        if getattr(self, 'cooldown_inicio_enemigos', 0.0) > 0.0:
+            self.cooldown_inicio_enemigos -= 0.05
+            if self.cooldown_inicio_enemigos <= 1e-4:
+                self.cooldown_inicio_enemigos = 0.0
 
         # Manejo del spawn y duración del martillo de curación
         if getattr(self, 'martillo_activo', False):
@@ -1432,8 +1461,9 @@ class Juego:
         shape_tank = self.datos_juego.get('shapes', {}).get('PLAYER_TANK', {})
         self.jugador_salud_max = shape_tank.get('HEALTH', 100)
         self.jugador_salud = self.jugador_salud_max
-        self.balas_max_jugador = 5
-        self.balas_restantes_jugador = 5
+        self.jugador_vidas = 1
+        self.balas_max_jugador = 2
+        self.balas_restantes_jugador = 2
         self.cooldown_recarga_jugador = 0.0
 
     def tank_spawnear_enemigo(self, tipo_enemigo, accion):
@@ -1517,6 +1547,9 @@ class Juego:
 
         hp = boss_shape.get('HP') or boss_shape.get('HEALTH') or 500
         damage = boss_shape.get('DAMAGE', 50)
+        speed = boss_shape.get('SPEED', 8)
+        if not speed or speed <= 0:
+            speed = 8
         color = boss_shape.get('COLOR') or boss_shape.get('color') or '#FF0055'
 
         for e in self.enemigos:
@@ -1525,6 +1558,8 @@ class Juego:
                 e['salud'] = hp
                 e['salud_max'] = hp
                 e['damage'] = damage
+                e['speed'] = speed
+                e['es_estatico'] = False
                 e['vivo'] = True
                 self.boss_enemigo = e
                 return
@@ -1533,7 +1568,7 @@ class Juego:
             'tipo': 'FINAL_BOSS',
             'nombre': 'FINAL_BOSS',
             'es_boss': True,
-            'es_estatico': True,
+            'es_estatico': False,
             'posicion': list(coords),
             'spawn_pos': list(coords),
             'direccion': (0, 1),
@@ -1543,7 +1578,7 @@ class Juego:
             'salud': hp,
             'salud_max': hp,
             'damage': damage,
-            'speed': 0,
+            'speed': speed,
             'color': color,
             'vivo': True,
             'tiempo_respawn': 0,
@@ -1553,6 +1588,104 @@ class Juego:
         }
         self.enemigos.append(nuevo_boss)
         self.boss_enemigo = nuevo_boss
+
+    def tank_mover_y_disparar_boss(self, boss):
+        if not boss.get('vivo', True) or self.juego_terminado:
+            return
+
+        # 1. Movimiento del Jefe Final (5x5)
+        if self.jugador_posicion and not boss.get('es_estatico', False):
+            boss['timer_movimiento'] += 0.05
+            speed = boss.get('speed', 8)
+            if not speed or speed <= 0:
+                speed = 8
+            intervalo = max(0.20, 3.5 / speed)
+
+            if boss['timer_movimiento'] >= intervalo:
+                boss['timer_movimiento'] = 0.0
+
+                ex, ey = boss['posicion']
+                px, py = self.jugador_posicion
+
+                # Centro del jefe (5x5) y centro del jugador (3x3)
+                bc_x = ex + 2
+                pc_x = px + 1
+                dx = pc_x - bc_x
+
+                opciones = []
+                # Movimiento horizontal para alinearse con el jugador
+                if dx > 0:
+                    opciones.append((1, 0))
+                elif dx < 0:
+                    opciones.append((-1, 0))
+
+                # Movimiento vertical (rango y=2 a 8) para avance/retroceso táctico
+                if ey < 5:
+                    opciones.append((0, 1))
+                elif ey > 2:
+                    opciones.append((0, -1))
+
+                # Flanqueo / patrulla en dirección contraria
+                if dx != 0:
+                    opciones.append((-1 if dx > 0 else 1, 0))
+
+                # Resto de direcciones cardinales
+                for opc in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+                    if opc not in opciones:
+                        opciones.append(opc)
+
+                for mdx, mdy in opciones:
+                    nx = ex + mdx
+                    ny = ey + mdy
+
+                    # Límites del área del jefe (5x5):
+                    # Ancho completo (0 a 35), filas superiores (2 a 8) para no tapar barra de vida ni encallar en búnkeres
+                    if not (0 <= nx <= self.ancho - 5 and 2 <= ny <= 8):
+                        continue
+
+                    # Evitar solapamiento con el jugador (AABB entre 5x5 y 3x3)
+                    if nx < px + 3 and nx + 5 > px and ny < py + 3 and ny + 5 > py:
+                        continue
+
+                    # Comprobar colisión con otros tanques vivos
+                    choca_otro = False
+                    for otro in self.enemigos:
+                        if otro is not boss and otro.get('vivo', True):
+                            ox, oy = otro['posicion']
+                            ow = otro.get('ancho', 3)
+                            oh = otro.get('alto', 3)
+                            if nx < ox + ow and nx + 5 > ox and ny < oy + oh and ny + 5 > oy:
+                                choca_otro = True
+                                break
+                    if choca_otro:
+                        continue
+
+                    # Comprobar colisión con muros
+                    choca_muro = False
+                    if hasattr(self, 'muros_posiciones'):
+                        for ox in range(5):
+                            for oy in range(5):
+                                if (nx + ox, ny + oy) in self.muros_posiciones:
+                                    choca_muro = True
+                                    break
+                            if choca_muro:
+                                break
+                    if choca_muro:
+                        continue
+
+                    # Aplicar movimiento
+                    boss['posicion'] = [nx, ny]
+                    break
+
+        # 2. Disparo según cadencia (respetando cooldown de inicio de juego)
+        if getattr(self, 'cooldown_inicio_enemigos', 0.0) <= 0.0:
+            boss['tiempo_ultimo_disparo'] += 0.05
+            cadencia_boss = boss.get('cadencia_disparo', 1.2)
+            if boss['tiempo_ultimo_disparo'] >= cadencia_boss:
+                self.tank_disparar_boss(boss)
+                boss['tiempo_ultimo_disparo'] = 0.0
+        else:
+            boss['tiempo_ultimo_disparo'] = 0.0
 
     def tank_disparar_boss(self, boss):
         if self.juego_terminado or not boss.get('vivo', True):
